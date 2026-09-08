@@ -1,0 +1,2 @@
+﻿N,speedup,date,project,task_type,rework_tasks,conflicts,merge_minutes,note
+# 空表，勿填合成数据。每次并行任务后追加一行：N=并发度，speedup=实测净加速比（串行耗时÷并行耗时）。至少 3 个不同 N 后再跑 scripts/fit_kappa.py --csv 本文件。
