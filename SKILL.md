@@ -5,7 +5,7 @@ when_to_use: 用户可能这样说——「这个仓库 500 多个文件，扫�
 description_zh: "多 Agent 并行派发的并发度决策与协调门禁（USL 定 K、契约先行、worktree 隔离、中心化验证）"
 description_en: "Decide parallel agent fan-out width (USL N_max), enforce contract-first, git-worktree isolation and centralized verification"
 display_name: "多 Agent 并行调度"
-version: 2.3.0
+version: 2.4.0
 user-invocable: true
 agent_created: true
 ---
@@ -28,7 +28,7 @@ agent_created: true
 6. **软隔离吃掉大部分并行收益。** CAID 消融：软隔离（共享 workspace + prompt 分文件）PaperBench **55.5% < 单 agent 57.2%**；Commit0-Lite 56.1% 虽高于单 agent 53.1%，仍显著低于 worktree 的 59.1%。owner 表**只是软隔离**。
 7. **并行买的是准确率，不是墙钟时间。** CAID 实测：PaperBench 1803.5s → **2080.4s（更慢）**；Commit0-Lite 692.6s → **1583.2s（慢 2.3×、贵 4.3×）**。诉求是"更快出结果"时，先压单 agent 路径，别加 agent。
 8. **通信更多 ≠ 更好。** 混合架构通信开销 +515%，成功率 0.452 反而**低于**单 agent 的 0.466。中心化优于全连通。
-9. **测试全绿也可能已经废了。** 多个 agent 各自独立实现同一概念（不同类名 / 接口 / 假设），代码能编译、测试能过，但代码库里躺着 3 份互相冲突的实现——这叫 **agentic drift**，是并行写入最阴险的失败模式。合并步骤**除了跑测试，必须专门查重复实现**。
+9. **测试全绿也可能已经废了。** 多个 agent 各自独立实现同一概念（不同类名 / 接口 / 假设），代码能编译、测试能过，但代码库里躺着 3 份互相冲突的实现——这叫 **agentic drift**，是并行写入最阴险的失败模式。合并步骤**除了跑测试，必须专门查重复实现**。实测旁证：600 次多 agent 试验中**零合并失败**，但**语义冲突率仍有 5–10%**（CodeCRDT, arXiv:2510.18893）——机械合并干净 ≠ 语义一致。
 10. **子 agent 自报"完成"不可信。** MAST 发现验证器普遍只做表面检查（"能编译吗"）——一个生成的国际象棋程序通过表面检查却有运行时 bug。验收必须命令化、可机器判定。
 
 ---
