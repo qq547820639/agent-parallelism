@@ -5,7 +5,7 @@ when_to_use: 用户可能这样说——「这个仓库 500 多个文件，扫�
 description_zh: "多 Agent 并行派发的并发度决策与协调门禁（USL 定 K、契约先行、worktree 隔离、中心化验证）"
 description_en: "Decide parallel agent fan-out width (USL N_max), enforce contract-first, git-worktree isolation and centralized verification"
 display_name: "多 Agent 并行调度"
-version: 1.8.0
+version: 2.1.0
 user-invocable: true
 agent_created: true
 ---
@@ -40,7 +40,7 @@ agent_created: true
 | | 工具级并行（同 agent 批量工具调用）| agent 级并行（派子 agent）|
 |---|---|---|
 | 上下文 | 共享，无复制 | 每个子 agent 独立窗口 |
-| 固定开销 | ≈0 | **约 20k tokens/个**（哪怕只读一个文件就返回）|
+| 固定开销 | ≈0 | **约 20k tokens/个**（业界报告值，量级参考；哪怕只读一个文件就返回）|
 | 适用 | 批量搜索 / 读取 / 检查 | 需隔离、压缩、独立推理链、工具限制或标准化 |
 
 **判定顺序**：先问"能不能在主线程用并行工具调用解决"——能就不派 agent。
@@ -63,7 +63,7 @@ agent_created: true
 
 > ⚠️ **不要把"先让单 agent 跑完一遍"当必经步骤。** CAID 实测「单 agent 跑完 → 再切多 agent」：runtime 与 cost 近乎相加而性能仅略升（PaperBench/Claude：63.3%@2080s → 66.8%@**3884s**；Commit0/MiniMax：得分**完全相同** 57.0%，runtime 1909s → 2661s）。**测基线是为了判断，不是为了试错**——测完直接选架构。
 
-### Step 1 · 可分解性三问（任一为否 → K=1）
+### Step 1 · 可分解性三问（逐条判定，任一命中否决条件即 K=1）
 
 | 问题 | 否决条件 |
 |---|---|
@@ -84,14 +84,15 @@ N_max = √((1 − σ) / κ)
 
 **speedup 的操作定义**：串行耗时 ÷（并行耗时 **+ 合并耗时 + 返工耗时**）。只记并行耗时会漏掉协调成本，拟合出的 κ 会系统性偏小、K 偏大。
 
-**有实测数据** → 直接跑（纯 stdlib，无网络，只读不写）：
+**有实测数据** → 直接跑（无网络、只读；有 scipy 时走 NLS 并给 N_max 置信区间，无 scipy 自动回落零依赖网格搜索）：
 
 ```bash
 python3 scripts/fit_kappa.py --csv assets/parallel-log.csv
-python3 scripts/fit_kappa.py --data "2:1.60,4:1.95,8:1.65,16:1.05"
 ```
 
-脚本输出 σ、κ、N_max、R² 与建议 K。**无实测数据** → 用下表，并在任务后补测：
+输出 σ、κ、N_max、R²、建议 K，并诊断**曲线形状**：仍在上升 → σ 侧（串行）或尚有余量；**已过峰值 → κ 侧，对策是减少共享（分区 / 每片独立状态 / 批量更新），不是调优并行代码**。置信区间需 **≥5 个不同 N**——2 参数拟合 4 个点自由度不足，区间只会是虚假精度。
+
+**无实测数据** → 用下表，并在任务后补测：
 
 | 场景 | σ | κ | N_max | 建议 K |
 |---|---|---|---|---|
@@ -119,7 +120,7 @@ CAID 补充（Figure 5）：manager 复核 **60.2%** > engineer 自验证 **55.1
 
 ⚠️ **不要用「多数一致」当验收。** 模型共享预训练数据，错误是相关的，Condorcet 陪审团定理的独立性假设不成立——几个 agent 一起自信地答错，共识会把错误**放大**而不是纠正。
 
-**模型配置**：orchestrator 用强模型，**worker 池内部保持同质**。Anthropic 生产架构即 Opus 4 主 agent + Sonnet 4 子 agent（+90.2%）；CAID 的收益在弱模型上最大（MiniMax +26.3 vs Claude +6.1）。但 worker 池内混用强弱会拖累——Nature MI 探索性实验：中心化异构团队比强模型同构团队低 **12.6 个百分点**。
+**模型配置**：orchestrator 用强模型，**worker 池内部保持同质**。Anthropic 生产架构即 Opus 4 主 agent + Sonnet 4 子 agent（+90.2%）；CAID 的收益在弱模型上最大（MiniMax +25.6 vs Claude +6.1）。但 worker 池内混用强弱会拖累——Nature MI 探索性实验：中心化异构团队比强模型同构团队低 **12.6 个百分点**。
 
 ### Step 4 · briefing 冗余率 ≈0.41
 
@@ -147,7 +148,7 @@ git merge <branch>                                  # 冲突由该分片的 agen
 
 三个原语（来自 CAID，CMU / OpenHands），缺一不可：**依赖图 DAG**（仅在上游合并后派发下游）、**worktree 物理隔离**（软隔离实测劣于单 agent，见 Gotcha 6）、**测试门控合并**（测试通过才 merge，main 始终可用）。
 
-补充：收益强弱不对称——CAID 在 PaperBench 上 MiniMax 2.5 **+26.3**、Claude 4.5 Sonnet 仅 **+6.1**，独立佐证「能力饱和」：**模型越强，并行收益越小**。
+补充：收益强弱不对称——CAID 在 PaperBench 上 MiniMax 2.5 **+25.6**、Claude 4.5 Sonnet 仅 **+6.1**，独立佐证「能力饱和」：**模型越强，并行收益越小**。
 
 ---
 
@@ -157,11 +158,15 @@ git merge <branch>                                  # 冲突由该分片的 agen
 
 **有效 K = min(K_协调最优, K_限流上限)。**
 
-限流上限**没有公式，只能实测探测**：用 AIMD（成功 +1 ／ 429 ×0.75 ／ 级联抑制 ／ 天花板稳定）。**固定并发是错的**——让系统自己找到上限。参数见 `references/关键数字速查.md` §7.7。
+限流上限**没有公式，只能实测探测**：用 AIMD（成功 +1 ／ 429 ×0.75 ／ 级联抑制 ／ 天花板稳定）。**固定并发是错的**——让系统自己找到上限。参数见 `references/关键数字速查.md` §10。
+
+---
 
 ## 派发前检查清单
 
 逐项勾选 `assets/dispatch-checklist.md`，**任一项未过 → 降到 K=1**。
+
+> *为什么契约是硬要求*：MAST 统计中**规格类失效占 44.2%**，是所有失效类别里最大的一类；仅修正角色规格即带来 **+9.4%** 成功率。
 
 ---
 
@@ -173,8 +178,9 @@ git merge <branch>                                  # 冲突由该分片的 agen
 | `assets/contract-template.md` | 要落盘 `contract.md` 时 |
 | `assets/subagent-brief-template.md` | 确定要派子 agent 后，写给每个子 agent 的 prompt |
 | `assets/parallel-log.csv` | 任务结束后记录观测，或拟合 κ 前 |
-| `assets/eval-cases.md` | 改动本 skill 的 `description` 后，回归测触发精度 |
+| `evals/` | 改动 `description` 后回归触发精度；改动流程后回归输出质量 |
 | `scripts/fit_kappa.py` | **直接运行**，不要读入上下文 |
+| `scripts/selfcheck.py` | **改动本 skill 任一文件后跑一次**（74 项结构不变量断言，exit 0 才算过）|
 | `references/关键数字速查.md` | 需要核对任何数字的口径、来源或修正记录时（**优先读这个**）|
 | `references/研究依据_多Agent并行.md` | 仅在：需要引用原始出处 / 需要 MAST 完整 14 种失效模式 / 需要信源可信度评估 |
 

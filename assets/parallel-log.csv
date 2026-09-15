@@ -1,2 +1,6 @@
-﻿N,speedup,date,project,task_type,rework_tasks,conflicts,merge_minutes,note
-# 空表，勿填合成数据。每次并行任务后追加一行：N=并发度，speedup=实测净加速比（串行耗时÷并行耗时）。至少 3 个不同 N 后再跑 scripts/fit_kappa.py --csv 本文件。
+﻿N,speedup,serial_seconds,parallel_seconds,merge_minutes,rework_minutes,rework_tasks,conflicts,date,project,task_type,note
+# 空表，勿填合成数据。每次并行任务后追加一行。
+# speedup = serial_seconds / (parallel_seconds + merge_minutes*60 + rework_minutes*60)
+#   —— 分母必须含合并与返工，只记并行耗时会漏掉协调成本，拟合出的 kappa 会系统性偏小、K 偏大。
+# 需要至少 5 个不同 N 才能跑 scripts/fit_kappa.py --csv 本文件 并得到参数与置信区间；
+#   少于 5 个 N 时脚本只给方向性判断，因为 2 参数拟合的自由度不足。

@@ -1,0 +1,29 @@
+[
+  { "id": "P1", "query": "派几个子 agent 并行扫一遍 src/，找出所有 TODO", "should_trigger": true },
+  { "id": "P2", "query": "这个仓库 580 个 Python 文件，做一次全量架构审计", "should_trigger": true },
+  { "id": "P3", "query": "能不能几个 agent 一起改？后端三张表要同时加字段", "should_trigger": true },
+  { "id": "P4", "query": "我让你同时推进 R-10 和 R-12 两个任务", "should_trigger": true },
+  { "id": "P5", "query": "并行处理一下这 30 个文件的重命名", "should_trigger": true },
+  { "id": "P6", "query": "跑大规模代码审计，用 subagent 扇出", "should_trigger": true },
+  { "id": "P7", "query": "429 了，怎么降并发？", "should_trigger": true },
+  { "id": "P8", "query": "加快执行速度，这个太慢了", "should_trigger": true, "note": "对抗样本对：与 N8 表层措辞几乎相同，区别是本句指任务交付速度" },
+  { "id": "P9", "query": "帮我同时调研 5 个竞品的定价，每个都要查官网和年报", "should_trigger": true },
+  { "id": "P10", "query": "把 EWOH 这 16 项优化任务分给多个 agent 去做", "should_trigger": true },
+
+  { "id": "N1", "query": "帮我 review 一下这个 PR", "should_trigger": false },
+  { "id": "N2", "query": "这个 bug 怎么修", "should_trigger": false },
+  { "id": "N3", "query": "把这段循环改成并行计算", "should_trigger": false, "note": "高风险近失：明说“并行”，但指程序内并发" },
+  { "id": "N4", "query": "用 pytest-xdist 并行跑测试", "should_trigger": false, "note": "高风险近失：工具级并行，非 agent 派发" },
+  { "id": "N5", "query": "多线程安全吗？加个锁", "should_trigger": false },
+  { "id": "N6", "query": "解释一下这段代码做了什么", "should_trigger": false },
+  { "id": "N7", "query": "帮我重构这个函数", "should_trigger": false },
+  { "id": "N8", "query": "这个接口响应时间太慢，优化一下", "should_trigger": false, "note": "对抗样本对：与 P8 表层措辞几乎相同，区别是本句指程序运行时性能" },
+  { "id": "N9", "query": "Kubernetes 现在有几个 Pod 在跑？", "should_trigger": false },
+  { "id": "N10", "query": "写个设计文档", "should_trigger": false },
+
+  { "id": "B1", "query": "并行跑一下这几个模块的测试", "should_trigger": false, "note": "边界：可能是 xdist 也可能需要 agent 分片测试；当前判定为不触发" },
+  { "id": "B2", "query": "这几个文件一起改了吧", "should_trigger": false, "note": "边界：可能单 agent 连续编辑即可" },
+  { "id": "B3", "query": "同时处理这三个 issue", "should_trigger": true, "note": "边界：可串行可并行，倾向触发" },
+  { "id": "B4", "query": "帮我看看这几个目录下都有什么", "should_trigger": false, "note": "边界：一次 Glob 就够" },
+  { "id": "B5", "query": "加速 CI", "should_trigger": false, "note": "边界：流水线优化，非 agent 派发" }
+]

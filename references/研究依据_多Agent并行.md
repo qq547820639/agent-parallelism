@@ -352,7 +352,8 @@ Step 4  定 briefing 冗余率
 - **架构**（Centralized Asynchronous Isolated Delegation）：中心 manager 构建依赖图 DAG → 每个 engineer 在独立 **git worktree** 中异步执行 → 自跑测试通过后 commit → manager 执行 **git merge**（冲突由产生该 commit 的 engineer 自行解决）→ 测试门控合并，main 始终处于可用状态。manager 与 engineer 之间用**结构化 JSON** 通信，而非自由对话。
 - **结果**：PaperBench **+26.7%**、Commit0 **+14.3%**（绝对提升），在 Claude 4.5 Sonnet、GLM 4.7、MiniMax 2.5 三个模型上方向一致。
 - **关键消融（本轮最重要的发现）**：**软隔离**（仅用 prompt 声明各 agent 改不同文件）在 PaperBench 上**表现差于单 agent**；换成 git worktree **物理**隔离后才转为正收益。
-- **收益强弱不对称**：PaperBench 分模型看 —— MiniMax 2.5：10.4% → 36.7%（**+26.3**）；Claude 4.5 Sonnet：57.2% → 63.3%（**+6.1**）；GLM 4.7：38.0% → 45.4%（+7.4）。
+- **收益强弱不对称**：PaperBench 分模型看 —— ~~MiniMax 2.5：10.4% → 36.7%（+26.3）~~；Claude 4.5 Sonnet：57.2% → 63.3%（**+6.1**）；GLM 4.7：38.0% → 45.4%（+7.4）。
+  > **更正（2026-09-15，手工核对 Table 2）**：MiniMax 2.5 的一手数值为 **10.5% → 36.1%（+25.6）**，本节原先的 10.4%→36.7%（+26.3）来自二手转载。已按一手改正；`关键数字速查.md` §9 与 §15 同步。保留划线而非静默删除，因该数字曾被引用到 SKILL.md。
   → **独立佐证 Nature MI 的「能力饱和」**：模型越强，并行带来的收益越小。两篇独立论文指向同一规律。
 - 单 agent 给**更多迭代**会平台化（反复回看、改坏已可用代码，额外算力大部分浪费）；多 agent 仍能继续受益，因为子任务确实可并行推进。
 

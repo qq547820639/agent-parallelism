@@ -105,7 +105,9 @@ git clone git@github.com:qq547820639/agent-parallelism.git ~/.claude/skills/agen
 python3 scripts/fit_kappa.py --csv assets/parallel-log.csv
 ```
 
-脚本会输出你环境的最优并行数建议。它只依赖 Python 标准库，无需安装任何依赖，也**只读不写**，放心运行。
+脚本会输出你环境的最优并行数建议。**不装任何依赖也能跑**（内置零依赖求解器）；如果环境里已有 numpy + scipy，它会自动改用更精确的非线性最小二乘，并额外给出最优并行数的**置信区间**。全程**只读不写**，放心运行。
+
+> 想拿到置信区间，需要累积**至少 5 个不同并发度**的观测；少于 5 次时脚本只给方向性判断——样本太少，区间会变成虚假精度。
 
 ## 常见问题（FAQ）
 
@@ -136,7 +138,7 @@ python3 scripts/fit_kappa.py --csv assets/parallel-log.csv
 | 助手没有并行，老老实实串行做了 | 任务本身不满足并行条件（这是正确行为） | 确认任务可拆分；确属可并行仍串行，检查 skill 是否正确安装到技能目录 |
 | 说「并行」助手没反应 | 表述未触发技能加载 | 明确说「用多个 agent 并行处理」或「派几个子 agent 一起做」 |
 | 拟合脚本报错 | Python 版本过旧或路径不对 | 使用 Python 3；确保在项目根目录运行，路径写对 |
-| 并行收益不明显 | 默认参数与你的环境不符 | 记录 3~5 次实测数据，跑拟合脚本替换默认值 |
+| 并行收益不明显 | 默认参数与你的环境不符 | 记录**至少 5 个不同并发度**的实测数据，跑拟合脚本替换默认值 |
 | 合并冲突特别多 | 隔离不充分或任务耦合过高 | 确认使用了 git worktree 物理隔离；若任务本身高度耦合，减少并行数 |
 
 ## 术语小词典
@@ -153,15 +155,22 @@ python3 scripts/fit_kappa.py --csv assets/parallel-log.csv
 ```
 agent-parallelism/
 ├── SKILL.md                        # 技能主文档（助手按需加载）
+├── README.md                       # 本文件：面向用户的产品说明
 ├── assets/
 │   ├── dispatch-checklist.md       # 派发前检查清单
 │   ├── contract-template.md        # 契约模板
 │   ├── subagent-brief-template.md  # 子 agent 任务简报模板
-│   ├── parallel-log.csv            # 并行实测日志（供拟合用）
-│   └── eval-cases.md               # 触发精度回归用例
+│   └── parallel-log.csv            # 并行实测日志（供拟合用）
 ├── scripts/
-│   └── fit_kappa.py                # 并发度拟合脚本
-└── references/                     # 研究依据与数字速查（按需查阅）
+│   ├── fit_kappa.py                # 并发度拟合脚本（直接运行，勿读入上下文）
+│   └── selfcheck.py                # 结构自检：改完技能跑一次，exit 0 才算过
+├── evals/                          # 评测集：触发精度 + 输出质量
+│   ├── eval_queries.json           # 25 条触发用例（含近失反例）
+│   ├── evals.json                  # 5 个输出用例 / 19 条可观察断言
+│   └── README.md                   # 评测方法与收敛判据
+└── references/                     # 研究依据与数字速查（按需查阅，默认不读）
+    ├── 关键数字速查.md
+    └── 研究依据_多Agent并行.md
 ```
 
 ---
