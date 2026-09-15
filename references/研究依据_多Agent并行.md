@@ -350,7 +350,8 @@ Step 4  定 briefing 冗余率
 
 - **文献**：Jiayi Geng, Graham Neubig, *Effective Strategies for Asynchronous Software Engineering Agents*（arXiv:2603.21489）。一手来源为 OpenHands 官方博客上作者本人撰写的客座文章。
 - **架构**（Centralized Asynchronous Isolated Delegation）：中心 manager 构建依赖图 DAG → 每个 engineer 在独立 **git worktree** 中异步执行 → 自跑测试通过后 commit → manager 执行 **git merge**（冲突由产生该 commit 的 engineer 自行解决）→ 测试门控合并，main 始终处于可用状态。manager 与 engineer 之间用**结构化 JSON** 通信，而非自由对话。
-- **结果**：PaperBench **+26.7%**、Commit0 **+14.3%**（绝对提升），在 Claude 4.5 Sonnet、GLM 4.7、MiniMax 2.5 三个模型上方向一致。
+- **结果**：PaperBench **+25.6%**、Commit0-Lite **+14.7%**（绝对提升，基于最弱模型 MiniMax 2.5），在 Claude 4.5 Sonnet、GLM 4.7、MiniMax 2.5 三个模型上方向一致。
+  > ~~PaperBench +26.7% / Commit0 +14.3%~~ 为早期二手转载值，已按一手 Table 2 改正（见本文件末「更正」节）。
 - **关键消融（本轮最重要的发现）**：**软隔离**（仅用 prompt 声明各 agent 改不同文件）在 PaperBench 上**表现差于单 agent**；换成 git worktree **物理**隔离后才转为正收益。
 - **收益强弱不对称**：PaperBench 分模型看 —— ~~MiniMax 2.5：10.4% → 36.7%（+26.3）~~；Claude 4.5 Sonnet：57.2% → 63.3%（**+6.1**）；GLM 4.7：38.0% → 45.4%（+7.4）。
   > **更正（2026-09-15，手工核对 Table 2）**：MiniMax 2.5 的一手数值为 **10.5% → 36.1%（+25.6）**，本节原先的 10.4%→36.7%（+26.3）来自二手转载。已按一手改正；`关键数字速查.md` §9 与 §15 同步。保留划线而非静默删除，因该数字曾被引用到 SKILL.md。
@@ -363,7 +364,7 @@ Step 4  定 briefing 冗余率
 |---|---|---|
 | 任务时程 | 短（单个 issue 修复） | 长（从零建库、复现论文） |
 | 隔离机制 | 共享 Docker 环境，**无 worktree** | git worktree 物理隔离 |
-| 结果 | 四种多 agent 结构**全部小幅下降** | **+14.3% / +26.7%** |
+| 结果 | 四种多 agent 结构**全部小幅下降** | **+14.7% / +25.6%**（一手值；早期二手转载为 +14.3% / +26.7%）|
 
 → **决定因素不是「编码 vs 研究」，而是「任务时程 × 隔离机制」。**
 短时程 + 无隔离 → 不要并行；长时程 + worktree 物理隔离 → 可并行且收益显著。
@@ -378,7 +379,7 @@ Step 4  定 briefing 冗余率
 ## 信源说明（诚实标注）
 
 - CAID 数字以 OpenHands 官方博客（作者本人撰写）为准；emergentmind、alchemictechnology、CSDN 均为二手转载。
-- **口径差异需注意**：「+26.7%」是 aggregate/最大值，分模型看 Claude 4.5 Sonnet 在 PaperBench 上仅 +6.1。引用时不可把 26.7% 当作跨模型通用值。
+- **口径差异需注意**：头条值（一手 **+25.6%**，曾被二手误传为 +26.7%）是**基于最弱模型 MiniMax 2.5** 的聚合/最大提升，**不是跨模型通用值**；分模型看 Claude 4.5 Sonnet 在 PaperBench 上仅 **+6.1**。引用时必须带模型。
 - ~~「软隔离差于单 agent」尚未核对原论文~~ → **已于第三轮核对一手论文（Table 3）并修正**：软隔离并非一律差于单 agent。PaperBench 上 55.5% < 单 agent 57.2%；Commit0-Lite 上 56.1% > 单 agent 53.1%，但仍显著低于 worktree 的 59.1%。
 
 ---
