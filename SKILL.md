@@ -5,7 +5,7 @@ when_to_use: 用户可能这样说——「这个仓库 500 多个文件，扫�
 description_zh: "多 Agent 并行派发的并发度决策与协调门禁（USL 定 K、契约先行、worktree 隔离、中心化验证）"
 description_en: "Decide parallel agent fan-out width (USL N_max), enforce contract-first, git-worktree isolation and centralized verification"
 display_name: "多 Agent 并行调度"
-version: 2.2.0
+version: 2.3.0
 user-invocable: true
 agent_created: true
 ---
