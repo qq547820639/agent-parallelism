@@ -205,6 +205,12 @@ def main():
     # ---------- stale version tags ----------
     chk("evals/README.md carries no stale version tag", "v1.9" not in eval_readme)
 
+    # ---------- no hardcoded self-check count ----------
+    # The number of checks depends on the file tree, so a literal count in
+    # SKILL.md goes stale the moment a file is added. It already did once.
+    chk("SKILL.md does not hardcode the self-check count",
+        not re.search(r"\d+\s*项结构不变量", skill))
+
     # ---------- no orphan files ----------
     for dirpath, dirnames, filenames in os.walk(ROOT):
         dirnames[:] = [d for d in dirnames if d != "__pycache__"]

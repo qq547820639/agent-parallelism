@@ -5,7 +5,7 @@ when_to_use: 用户可能这样说——「这个仓库 500 多个文件，扫�
 description_zh: "多 Agent 并行派发的并发度决策与协调门禁（USL 定 K、契约先行、worktree 隔离、中心化验证）"
 description_en: "Decide parallel agent fan-out width (USL N_max), enforce contract-first, git-worktree isolation and centralized verification"
 display_name: "多 Agent 并行调度"
-version: 2.4.0
+version: 2.4.1
 user-invocable: true
 agent_created: true
 ---
@@ -180,7 +180,7 @@ git merge <branch>                                  # 冲突由该分片的 agen
 | `assets/parallel-log.csv` | 任务结束后记录观测，或拟合 κ 前 |
 | `evals/` | 改动 `description` 后回归触发精度；改动流程后回归输出质量 |
 | `scripts/fit_kappa.py` | **直接运行**，不要读入上下文 |
-| `scripts/selfcheck.py` | **改动本 skill 任一文件后跑一次**（74 项结构不变量断言，exit 0 才算过）|
+| `scripts/selfcheck.py` | **改动本 skill 任一文件后跑一次**（结构不变量断言，exit 0 才算过；断言数随文件树变化，不要在此写死）|
 | `references/关键数字速查.md` | 需要核对任何数字的口径、来源或修正记录时（**优先读这个**）|
 | `references/研究依据_多Agent并行.md` | 仅在：需要引用原始出处 / 需要 MAST 完整 14 种失效模式 / 需要信源可信度评估 |
 
