@@ -156,6 +156,22 @@ def main():
     chk("log quotes the script's own dof gate",
         gate is not None and ("至少 %d 个不同 N" % gate) in log_csv)
 
+    # ---------- markdown table integrity ----------
+    # A blank line between two rows silently splits a table in two, and every
+    # renderer then drops the header from the second block. This project's
+    # evidence files are mostly tables patched by scripts, so it is checked.
+    for rel in ("SKILL.md", "references/关键数字速查.md", "README.md",
+                "evals/README.md", "assets/contract-template.md",
+                "assets/subagent-brief-template.md", "assets/dispatch-checklist.md"):
+        if not os.path.exists(os.path.join(ROOT, rel)):
+            continue        # README.md exists only in the distribution repo
+        ls = read(rel).split("\n")
+        splits = [k for k in range(1, len(ls) - 1)
+                  if not ls[k].strip() and ls[k - 1].lstrip().startswith("|")
+                  and ls[k + 1].lstrip().startswith("|")]
+        chk("no table split by a blank line: %s" % rel, not splits,
+            "lines %s" % [k + 1 for k in splits])
+
     # ---------- measured USL rows ----------
     data = [l.split(",") for l in log_csv.splitlines()
             if l and not l.startswith("#") and not l.startswith("N,")]
