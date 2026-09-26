@@ -49,7 +49,11 @@ SHARED_FACTS = [
 
 # Values superseded by primary sources; must not reappear in SKILL.md's live text
 # (a struck-through retraction of them is allowed and expected).
-STALE_VALUES = ["26.3", "26.7", "14.3%", "27~138", "12~14 分钟", "50.3"]
+# "至少 5 个不同并发度" is the dof gate the script moved from 5 to 6 (section 18);
+# it lived on the README face -- which the stale scan used to skip, so the same
+# claim was correct in SKILL.md and wrong one file over.
+STALE_VALUES = ["26.3", "26.7", "14.3%", "27~138", "12~14 分钟", "50.3",
+                "至少 5 个不同并发度"]
 
 # JSON schema shared by contract and brief templates.
 SCHEMA_FIELDS = {
@@ -137,11 +141,21 @@ def main():
     chk("retraction stripping is real: removes the struck copy, keeps the prose",
         "SENTINEL" not in stripped and "SENTINEL" in fixture and "live token stays" in stripped,
         repr(stripped))
+    readme_path_early = os.path.join(ROOT, "README.md")
+    readme = (open(readme_path_early, encoding="utf-8").read()
+              if os.path.exists(readme_path_early) else "")
+    readme_live = re.sub(r"~~.*?~~", "", readme, flags=re.S)
     for bad in STALE_VALUES:
         chk("no superseded value %r in SKILL.md (live text)" % bad, bad not in skill_live)
         if bad in skill:
             chk("superseded %r survives only as a retraction" % bad,
                 bad in skill and bad not in skill_live)
+        if readme:
+            chk("no superseded value %r in README.md (live text)" % bad,
+                bad not in readme_live)
+            if bad in readme:
+                chk("superseded %r survives in README only as a retraction" % bad,
+                    bad not in readme_live)
 
     # ---------- cross-file fact agreement ----------
     for fact in SHARED_FACTS:
