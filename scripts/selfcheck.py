@@ -42,6 +42,9 @@ SHARED_FACTS = [
     # two different t_start moments); "250.652" only means "the pin serial baseline"
     # because row() now refuses to divide a pin arm by an f0 baseline.
     "40.3", "250.652", "0.35~0.83", "14%", "65510",
+    # Draw 2 of the pin regime: the denominator moves inside ONE regime, and the
+    # refused arms say how little concurrency the channel actually delivered.
+    "112.953", "2.22", "0.17~0.22",
 ]
 
 # Values superseded by primary sources; must not reappear in SKILL.md's live text
@@ -150,7 +153,8 @@ def main():
     # verdict: section 21 item 4 is exactly the "absent reads as clean" defect, so
     # the gate states which face it looked at, and in the source tree asserts the
     # thing that makes "no README here" legitimate.
-    README_FACTS = ["47.0", "250.652", "40.3", "0.35~0.83", "14%"]
+    README_FACTS = ["47.0", "250.652", "40.3", "0.35~0.83", "14%",
+                    "112.953", "2.22", "0.17~0.22"]
     readme_path = os.path.join(ROOT, "README.md")
     if os.path.exists(readme_path):
         readme = open(readme_path, encoding="utf-8").read()
