@@ -33,14 +33,14 @@ SHARED_FACTS = [
     # Mechanism model over the same arms (2026-09-27, references section 19).
     # "27.8~233.9" replaces the retired "27~138" that quoted one level's max
     # as the whole series' upper bound.
-    "27.8~233.9", "50.3", "7.23",
+    "27.8~233.9", "47.0", "7.23",
     # Out-of-sample mid run (references section 20): the two arms that decided it.
     "2.383", "0.739", "1.64",
 ]
 
 # Values superseded by primary sources; must not reappear in SKILL.md's live text
 # (a struck-through retraction of them is allowed and expected).
-STALE_VALUES = ["26.3", "26.7", "14.3%", "27~138", "12~14 分钟"]
+STALE_VALUES = ["26.3", "26.7", "14.3%", "27~138", "12~14 分钟", "50.3"]
 
 # JSON schema shared by contract and brief templates.
 SCHEMA_FIELDS = {
