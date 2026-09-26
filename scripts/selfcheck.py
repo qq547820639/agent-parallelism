@@ -45,6 +45,12 @@ SHARED_FACTS = [
     # Draw 2 of the pin regime: the denominator moves inside ONE regime, and the
     # refused arms say how little concurrency the channel actually delivered.
     "112.953", "287.568", "2.55", "0.17~0.22", "1.110", "3.242", "98%",
+    # Sections 22 (8)(9): the per-worker cost fit and the channel's kappa floor.
+    # "a" belongs to a (corpus x brief) cell -- 47.0 / 101.84 / 19.06 are three cells
+    # of one quantity, so quoting 47.0 without saying which is the bug these guard.
+    # The floor is an UPPER edge (0.093): the median is not robust to the residual
+    # model (0.0386 per-level vs 0.0147 pooled), the edge is (0.0926 vs 0.0879).
+    "101.84", "19.06", "0.745", "3.13", "0.0386", "0.0470", "0.093",
 ]
 
 # Values superseded by primary sources; must not reappear in SKILL.md's live text
@@ -169,7 +175,9 @@ def main():
     # thing that makes "no README here" legitimate.
     README_FACTS = ["47.0", "250.652", "40.3", "0.35~0.83", "14%",
                     "112.953", "287.568", "2.55", "0.17~0.22",
-                    "1.110", "3.242", "98%"]
+                    "1.110", "3.242", "98%",
+                    "101.84", "19.06", "0.745", "4.285", "3.13",
+                    "0.0386", "0.0926", "0.0470"]
     readme_path = os.path.join(ROOT, "README.md")
     if os.path.exists(readme_path):
         readme = open(readme_path, encoding="utf-8").read()
