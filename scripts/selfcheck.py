@@ -35,7 +35,7 @@ SHARED_FACTS = [
     # as the whole series' upper bound.
     "27.8~233.9", "47.0", "7.23",
     # Out-of-sample mid run (references section 20): the two arms that decided it.
-    "2.383", "0.739", "1.64",
+    "2.383", "0.739", "1.64", "0.07",
 ]
 
 # Values superseded by primary sources; must not reappear in SKILL.md's live text
