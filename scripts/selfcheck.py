@@ -34,10 +34,13 @@ SHARED_FACTS = [
     # "27.8~233.9" replaces the retired "27~138" that quoted one level's max
     # as the whole series' upper bound.
     "27.8~233.9", "50.3", "7.23",
+    # Out-of-sample mid run (references section 20): the two arms that decided it.
+    "2.383", "0.739",
 ]
 
-# Values superseded by primary sources; must not reappear in SKILL.md.
-STALE_VALUES = ["26.3", "26.7", "14.3%", "27~138"]
+# Values superseded by primary sources; must not reappear in SKILL.md's live text
+# (a struck-through retraction of them is allowed and expected).
+STALE_VALUES = ["26.3", "26.7", "14.3%", "27~138", "12~14 分钟"]
 
 # JSON schema shared by contract and brief templates.
 SCHEMA_FIELDS = {
@@ -115,8 +118,21 @@ def main():
             os.path.exists(os.path.join(ROOT, path.rstrip("/"))))
 
     # ---------- no superseded values ----------
+    # A retired number may still appear INSIDE a strikethrough retraction -- that is
+    # the record, not a regression. Scan the live face, and prove the exclusion has
+    # teeth on a fixture rather than trusting it (a blanket `~~` strip that ate the
+    # whole file would pass every stale check forever).
+    skill_live = re.sub(r"~~.*?~~", "", skill, flags=re.S)
+    fixture = "live token stays ~~SENTINEL retired~~"
+    stripped = re.sub(r"~~.*?~~", "", fixture, flags=re.S)
+    chk("retraction stripping is real: removes the struck copy, keeps the prose",
+        "SENTINEL" not in stripped and "SENTINEL" in fixture and "live token stays" in stripped,
+        repr(stripped))
     for bad in STALE_VALUES:
-        chk("no superseded value %r in SKILL.md" % bad, bad not in skill)
+        chk("no superseded value %r in SKILL.md (live text)" % bad, bad not in skill_live)
+        if bad in skill:
+            chk("superseded %r survives only as a retraction" % bad,
+                bad in skill and bad not in skill_live)
 
     # ---------- cross-file fact agreement ----------
     for fact in SHARED_FACTS:
