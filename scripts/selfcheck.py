@@ -28,6 +28,8 @@ SHARED_FACTS = [
     "60.2%", "55.1%", "54.0%", "0.41", "45%", "12.6 个百分点", "20k",
     # Fitted 2026-09-26 from assets/parallel-log.csv (see references §16).
     "0.697", "0.069", "2.09", "1.43",
+    # Read-only round 2 (2026-09-26, 25 arms; see references section 18).
+    "0.63~0.83", "25 臂",
 ]
 
 # Values superseded by primary sources; must not reappear in SKILL.md.

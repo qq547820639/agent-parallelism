@@ -19,6 +19,17 @@
 
 set -eu
 
+# The platform ships skill-creator as a plugin, and the packaged app path is only one
+# of several install shapes -- resolve both, then print what was actually found so the
+# command in the "Next:" block runs verbatim on this machine.
+SC=/Applications/WorkBuddy.app/Contents/Resources/app.asar.unpacked/resources
+for name in quick_validate.py package_skill.py; do
+  hit=$(ls -d "$SC/plugins/workbuddy-builtin/skills/skill-creator/scripts/$name" 2>/dev/null | head -1)
+  [ -n "$hit" ] || hit=$(ls -d "$HOME"/.workbuddy/plugins/cache/workbuddy-builtin/skill-skill-creator/*/scripts/$name 2>/dev/null | sort -V | tail -1)
+  if [ "$name" = "quick_validate.py" ]; then VALIDATOR=$hit; else PACKAGER=$hit; fi
+done
+export VALIDATOR PACKAGER
+
 SRC="${AGENT_PARALLELISM_SRC:-$HOME/.workbuddy/skills/agent-parallelism}"
 DST="$(cd "$(dirname "$0")/.." && pwd)"
 DRY=""
@@ -98,9 +109,8 @@ echo "Next:"
 echo "  1. git status && git diff --stat"
 echo "  2. README.md is maintained HERE ONLY -- a content sync can leave it stale."
 echo "     Diff it against the change list before committing."
-echo "  3. Independent check with the platform's own validator, and packaging:"
-echo "       SC=/Applications/WorkBuddy.app/Contents/Resources/app.asar.unpacked/resources"
-echo "       python3 \"\$SC/plugins/workbuddy-builtin/skills/skill-creator/scripts/quick_validate.py\" \"$SRC\""
-echo "       python3 \"\$SC/plugins/workbuddy-builtin/skills/skill-creator/scripts/package_skill.py\" \\"
-echo "         \"$SRC\" ./dist"
+echo "  3. Independent check with the platform's own validator, then packaging"
+echo "     (paths resolved above; the packaged app is not the only install shape):"
+echo "       python3 \"\${VALIDATOR:-VALIDATOR-NOT-FOUND}\" \"$SRC\""
+echo "       python3 \"\${PACKAGER:-PACKAGER-NOT-FOUND}\" \"$SRC\" ./dist"
 echo "  4. git add -A && git commit"
