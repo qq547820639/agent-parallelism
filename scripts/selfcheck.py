@@ -36,6 +36,12 @@ SHARED_FACTS = [
     "27.8~233.9", "47.0", "7.23",
     # Out-of-sample mid run (references section 20): the two arms that decided it.
     "2.383", "0.739", "1.64", "0.07",
+    # The pin regime (references sections 21-22, 2026-09-27): what the mechanism
+    # census, the delivered-concurrency ruler and the regime gate each measured.
+    # "40.3" is the ORCHESTRATOR-SIDE term (the dispatch message and the brief gave
+    # two different t_start moments); "250.652" only means "the pin serial baseline"
+    # because row() now refuses to divide a pin arm by an f0 baseline.
+    "40.3", "250.652", "0.35~0.83", "14%", "65510",
 ]
 
 # Values superseded by primary sources; must not reappear in SKILL.md's live text
@@ -138,6 +144,24 @@ def main():
     for fact in SHARED_FACTS:
         chk("fact %r present in SKILL.md and number reference" % fact,
             fact in skill and fact in ref_num)
+
+    # The repo README is the THIRD face that quotes these numbers, and it is a
+    # repo-only file (the skill source tree has no README.md). Silence is not a
+    # verdict: section 21 item 4 is exactly the "absent reads as clean" defect, so
+    # the gate states which face it looked at, and in the source tree asserts the
+    # thing that makes "no README here" legitimate.
+    README_FACTS = ["47.0", "250.652", "40.3", "0.35~0.83", "14%"]
+    readme_path = os.path.join(ROOT, "README.md")
+    if os.path.exists(readme_path):
+        readme = open(readme_path, encoding="utf-8").read()
+        for fact in README_FACTS:
+            chk("README face carries %r" % fact, fact in readme,
+                "README.md is where users read the headline numbers")
+    else:
+        chk("no README face in this tree: repo-only file, so README agreement was "
+            "NOT checked here (run the repo copy to check it)",
+            not os.path.exists(os.path.join(ROOT, "scripts", "sync_from_source.sh")),
+            "a sync script next to a missing README means a half-synced tree")
 
     # ---------- internal cross-references resolve, on EVERY markdown face ----------
     # A "§N" is a promise that a section exists. Two failure modes were both seen
