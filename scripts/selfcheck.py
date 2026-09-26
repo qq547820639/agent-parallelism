@@ -26,6 +26,8 @@ ROOT = os.path.dirname(HERE)
 SHARED_FACTS = [
     "25.6", "14.7", "17.2×", "4.4×", "44.2%", "15.6%", "9.4%",
     "60.2%", "55.1%", "54.0%", "0.41", "45%", "12.6 个百分点", "20k",
+    # Fitted 2026-09-26 from assets/parallel-log.csv (see references §16).
+    "0.697", "0.069", "2.09", "1.43",
 ]
 
 # Values superseded by primary sources; must not reappear in SKILL.md.
@@ -144,8 +146,98 @@ def main():
     chk("log speedup denominator includes merge and rework",
         "merge_minutes" in log_csv and "rework_minutes" in log_csv
         and "serial_seconds /" in log_csv.replace("\n", " "))
-    chk("log requires >=5 distinct N (matches the script's dof gate)",
-        "至少 5 个不同 N" in log_csv)
+    # The script owns the dof gate; both documents must quote ITS number.
+    fit_src = read("scripts/fit_kappa.py")
+    m_gate = re.search(r"MIN_POINTS_FOR_PARAMS\s*=\s*(\d+)", fit_src)
+    gate = int(m_gate.group(1)) if m_gate else None
+    chk("fit script declares a dof gate", gate is not None)
+    chk("SKILL.md quotes the script's own dof gate",
+        gate is not None and ("≥%d 个不同 N" % gate) in skill)
+    chk("log quotes the script's own dof gate",
+        gate is not None and ("至少 %d 个不同 N" % gate) in log_csv)
+
+    # ---------- measured USL rows ----------
+    data = [l.split(",") for l in log_csv.splitlines()
+            if l and not l.startswith("#") and not l.startswith("N,")]
+    data = [c for c in data if len(c) >= 8]
+    chk("log holds parsed measurement rows", len(data) >= 1, "%d rows" % len(data))
+
+    broken = []
+    for c in data:
+        try:
+            sp, ser, par = float(c[1]), float(c[2]), float(c[3])
+            mm, rm = float(c[4]), float(c[5])
+        except ValueError:
+            broken.append("unparseable N=%s" % c[0])
+            continue
+        calc = ser / (par + mm * 60.0 + rm * 60.0)
+        if abs(calc - sp) > 2e-3:
+            broken.append("N=%s recorded %.3f != %.3f" % (c[0], sp, calc))
+    chk("each log row's speedup recomputes from its own columns", not broken, str(broken))
+
+    measured_types = {c[10].strip() for c in data if len(c) > 10}
+    chk("measured rows reach the script's dof gate",
+        gate is None or len({c[0] for c in data}) >= gate,
+        "%d distinct N vs gate %s" % (len({c[0] for c in data}), gate))
+
+    # Re-fit the shipped log and compare with what the table says. Presence
+    # checks cannot catch a number that is still printed but no longer the fit.
+    import importlib.util as _ilu
+    _spec = _ilu.spec_from_file_location("fit_kappa", os.path.join(ROOT, "scripts",
+                                                                    "fit_kappa.py"))
+    _fk = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(_fk)
+    pairs = _fk.load_csv(os.path.join(ROOT, "assets", "parallel-log.csv"))
+    if len(pairs) >= 3:
+        _s, _k, _ = _fk.fit_grid(pairs)
+        wrow = [l for l in skill.splitlines() if l.startswith("| 写入 / 共享状态")]
+        cells = [c.strip().strip("*") for c in wrow[0].strip("|").split("|")] if wrow else []
+        try:
+            t_sigma, t_kappa = float(cells[1]), float(cells[2])
+        except (ValueError, IndexError):
+            t_sigma = t_kappa = None
+        chk("table sigma equals a re-fit of the log",
+            t_sigma is not None and abs(t_sigma - _s) <= 0.02,
+            "table=%s refit=%.4f" % (t_sigma, _s))
+        chk("table kappa equals a re-fit of the log",
+            t_kappa is not None and abs(t_kappa - _k) <= 0.01,
+            "table=%s refit=%.5f" % (t_kappa, _k))
+        n_max = _fk.nmax(_s, _k)
+        chk("table N_max equals a re-fit of the log",
+            n_max is not None and len(cells) > 3 and abs(float(cells[3]) - n_max) <= 0.25,
+            "table=%s refit=%.2f" % (cells[3] if len(cells) > 3 else None, n_max or -1))
+    else:
+        warn("log too short to re-fit and compare with the table", "%d pairs" % len(pairs))
+
+    # A 实测 label is a claim about the data file, so it is checked against it.
+    table_rows = [l for l in skill.splitlines()
+                  if l.startswith("| 只读 / 独立分片") or l.startswith("| 写入 / 共享状态")
+                  or l.startswith("| 编码主链路")]
+    chk("Step 2 default table is present with one row per scenario", len(table_rows) == 3,
+        "%d rows" % len(table_rows))
+    for row in table_rows:
+        cells = [c.strip() for c in row.strip("|").split("|")]
+        basis = cells[-1] if cells else ""
+        scenario = cells[0]
+        backed = ("write" if "写入" in scenario else
+                  "read" if "只读" in scenario else "coding")
+        # "未实测" contains "实测" -- a plain substring test would grade an honest
+        # guess row as a measurement claim.
+        claims_measured = "实测" in basis.replace("未实测", "")
+        actually_backed = backed == "write" and any("write" in t for t in measured_types)
+        chk("scenario '%s': 实测 label matches the data behind it" % scenario,
+            claims_measured == actually_backed,
+            "label=%s rows=%s measured_types=%s" % (claims_measured, actually_backed,
+                                                    sorted(measured_types)))
+        if not claims_measured:
+            chk("scenario '%s' says its number is unmeasured" % scenario,
+                "猜" in basis or "未实测" in basis, basis)
+
+    # SKILL.md promises these readings; if the script stops printing them the
+    # promise becomes a lie in the next run someone makes.
+    for needle in ("ceiling if kappa=0", "corr(sigma,kappa)", "NOT identifiable",
+                   "--selftest"):
+        chk("fit script prints what SKILL.md promises: %s" % needle, needle in fit_src)
 
     # ---------- agentic-drift countermeasure is propagated ----------
     chk("contract requires 先查再写", "先查再写" in contract)
@@ -213,7 +305,11 @@ def main():
 
     # ---------- no orphan files ----------
     for dirpath, dirnames, filenames in os.walk(ROOT):
-        dirnames[:] = [d for d in dirnames if d != "__pycache__"]
+        # Descending into .git made the repo copy "check" that git object files
+        # are non-empty and read 188 vs the source tree's 97 -- the count was
+        # measuring git history, not the skill.
+        dirnames[:] = [d for d in dirnames
+                       if d != "__pycache__" and not d.startswith(".")]
         for fn in filenames:
             full = os.path.join(dirpath, fn)
             rel = os.path.relpath(full, ROOT)
@@ -228,9 +324,23 @@ def main():
         if "agent-parallelism" in mem:
             chk("MEMORY.md gate points at this skill",
                 "skills/agent-parallelism/SKILL.md" in mem)
-            chk("MEMORY.md K defaults match SKILL.md (read 8~9 / write 2~4)",
-                "只读 8~9" in mem and "写入 2~4" in mem
-                and "8~9" in skill and "2~4" in skill)
+            # K defaults live in the SKILL.md table; MEMORY.md restates them.
+            # Compare the two by parsing, so a changed table cannot leave the
+            # resident memory quoting a superseded number unnoticed.
+            def _kcell(prefix):
+                for row in skill.splitlines():
+                    if row.startswith(prefix):
+                        cells = [c.strip().strip("*") for c in row.strip("|").split("|")]
+                        return cells[4] if len(cells) >= 5 else None
+                return None
+
+            k_read, k_write = _kcell("| 只读 / 独立分片"), _kcell("| 写入 / 共享状态")
+            chk("MEMORY.md read-only K default equals the table",
+                k_read is not None and ("只读 %s" % k_read) in mem,
+                "table=%r" % k_read)
+            chk("MEMORY.md write K default equals the table",
+                k_write is not None and ("写入 %s" % k_write) in mem,
+                "table=%r" % k_write)
             chk("MEMORY.md carries the wall-clock caveat",
                 "准确率不是墙钟时间" in mem or "准确率不是墙钟" in mem)
             chk("MEMORY.md separates rate limiting from coordination",

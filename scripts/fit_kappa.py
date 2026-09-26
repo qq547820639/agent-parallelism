@@ -23,7 +23,17 @@ Usage:
 CSV format: first column = concurrency N, second column = observed net speedup.
 Header and comment rows are auto-skipped. Extra columns are ignored.
 
-Prior art this borrows from (neither is depended on -- both Python packages are stale):
+Reports three distinct scalability numbers, because they answer different
+questions and the R reference implementation keeps them separate:
+  peak      N_max = sqrt((1-sigma)/kappa)  -- most useful width, past it you lose
+  ceiling   1/sigma                      -- best possible if coherency were free
+  identifiability  corr(sigma, kappa)    -- near +/-1 means the split is not resolved
+A kappa > 0 claim needs a *retrograde* tail: if the sweep never passed the peak,
+kappa is not identifiable and the fit says so instead of printing a number as if
+it were one.
+
+Prior art this borrows semantics from (neither is depended on -- both Python
+packages are stale, and the live one is R-only):
   - wip727/PyUSL (MIT, last commit 2020-05, v0.0.4, nose-based tests) -- curve_fit approach
   - mookerji/sca_tools (Apache-2.0, 2017, self-described alpha, uses lmfit) --
     uncertainty propagation as the differentiating feature
@@ -39,7 +49,8 @@ GRID = 40
 ROUNDS = 7
 K_LO, K_HI = 1e-4, 0.30
 S_LO, S_HI = 0.0, 0.60
-MIN_POINTS_FOR_PARAMS = 5
+MIN_POINTS_FOR_PARAMS = 6   # dof gate; matches R usl's own <6-obs warning
+CORR_WARN = 0.90            # |corr(sigma,kappa)| above this => not separable
 
 
 def usl(n, s, k):
@@ -113,6 +124,20 @@ def fit_scipy(pairs, sigma_fixed=None):
         return None
 
 
+def corr(cov):
+    """Pearson correlation between the fitted sigma and kappa. sigma and kappa both
+    bend the curve downward, so few noisy points cannot separate them; a reader
+    must know when the split is an artifact of the fit rather than a finding."""
+    try:
+        v0, v1 = cov[0][0], cov[1][1]
+        if v0 <= 0 or v1 <= 0:
+            return None
+        c = cov[0][1] / (v0 ** 0.5 * v1 ** 0.5)
+        return c if c == c and abs(c) <= 1.0 else None
+    except Exception:
+        return None
+
+
 def nmax(s, k):
     if k <= 0 or s >= 1.0:
         return None
@@ -181,9 +206,49 @@ def load_csv(path):
     return pairs
 
 
+def selftest():
+    """Controls for the three added readings. A probe that cannot fire is worthless,
+    and 'no decline observed' must not fire on a sweep that did pass its peak."""
+    peaked_data = [(1.0, 1.00), (2.0, 1.45), (4.0, 1.30), (8.0, 0.90),
+                   (12.0, 0.55), (16.0, 0.35)]
+    rising_data = [(1.0, 1.00), (2.0, 1.45), (3.0, 1.70), (4.0, 1.85),
+                   (6.0, 1.95), (8.0, 1.99)]
+    ok = []
+
+    bmax = max(peaked_data, key=lambda p: p[1])[0]
+    last = max(peaked_data)[0]
+    ok.append(("P1 peaked dataset is judged to have passed its peak",
+               bmax < last and _straddle(peaked_data)))
+    ok.append(("P2 rising dataset is NOT judged to have passed its peak",
+               not _straddle(rising_data)))
+    ok.append(("P3 ceiling = 1/sigma is finite and > 1 for sigma in range",
+               abs(1.0 / 0.2 - 5.0) < 1e-9))
+    ok.append(("P4 correlation is computed from covariance",
+               abs(corr([[4.0, 1.0], [1.0, 1.0]]) - 0.5) < 1e-9))
+    ok.append(("P5 degenerate covariance yields None not a number",
+               corr([[0.0, 0.0], [0.0, 0.0]]) is None))
+    print("== fit_kappa selftest ==")
+    bad = 0
+    for name, passed in ok:
+        bad += 0 if passed else 1
+        print("  %s  %s" % ("PASS" if passed else "FAIL", name))
+    print("controls : %d" % len(ok))
+    print("failed   : %d" % bad)
+    return 1 if bad else 0
+
+
+def _straddle(pairs):
+    """True when the observations include a rise and then a real fall."""
+    best = max(pairs, key=lambda p: p[1])
+    last = max(pairs)
+    return best[0] < last[0] - 1e-9 and best[1] > last[1] * 1.02
+
+
 def main():
     ap = argparse.ArgumentParser(description="Fit USL sigma/kappa from observed speedups.")
-    src = ap.add_mutually_exclusive_group(required=True)
+    src = ap.add_mutually_exclusive_group(required=False)
+    ap.add_argument("--selftest", action="store_true",
+                    help="run the controls for ceiling/correlation/peak-straddle and exit")
     src.add_argument("--data", help='inline pairs, e.g. "2:1.60,4:1.95,8:1.65"')
     src.add_argument("--csv", help="CSV with N in col 1 and speedup in col 2")
     ap.add_argument("--sigma", type=float, default=None, help="fix sigma, fit kappa only")
@@ -191,6 +256,11 @@ def main():
     ap.add_argument("--draws", type=int, default=2000, help="Monte-Carlo draws for N_max CI")
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
+
+    if args.selftest:
+        return selftest()
+    if not args.data and not args.csv:
+        ap.error("--data or --csv is required (or run --selftest)")
 
     pairs = parse_data(args.data) if args.data else load_csv(args.csv)
     pairs = [(n, o) for n, o in pairs if n >= 1 and o > 0]
@@ -227,6 +297,10 @@ def main():
     print("kappa  (coherency)  : %.5f" % kappa)
     print("SSE                 : %.5f" % sse)
     print("R^2                 : %.4f" % r2)
+    # 1/sigma: the saturation ceiling of the Amdahl-only model (kappa=0). If it
+    # sits near 1, contention alone caps the payoff and no coherency fix helps.
+    print("ceiling if kappa=0  : %.2f  (= 1/sigma, Amdahl-only saturation)"
+          % (1.0 / sigma if sigma > 1e-9 else float("inf")))
 
     n_max = nmax(sigma, kappa)
     if n_max is None:
@@ -254,14 +328,28 @@ def main():
             print("N_max = sqrt((1-sigma)/kappa) : %.2f" % n_max)
             if ci_note:
                 print("                                (no CI: %s)" % ci_note)
+        c = corr(cov) if cov is not None else None
+        if c is not None:
+            print("corr(sigma,kappa)     : %+.3f%s"
+                  % (c, "   <-- parameters nearly unidentifiable; treat sigma/kappa "
+                        "as one combined penalty, not two findings"
+                     if abs(c) >= CORR_WARN else ""))
         if n_max < 1.5:
             print("recommended K       : 1  (N_max < 1.5 -> parallelism not worth it)")
         else:
             print("recommended K       : %d" % max(1, min(16, int(math.floor(n_max)))))
 
+    # Without a decline, kappa>0 is not evidenced and any reported value is the
+    # shape of the rising side, not a measured coherency cost.
+    peaked = _straddle(pairs) if len(pairs) >= 2 else None
+
     if n_max is not None:
         observed_max_n = max(n for n, _ in pairs)
-        if n_max <= observed_max_n:
+        if not peaked:
+            print("curve shape         : NO decline observed -> kappa NOT identifiable.")
+            print("                      The fit's kappa is extrapolated from the rising")
+            print("                      side; widen the sweep past the peak before quoting it.")
+        elif n_max <= observed_max_n:
             print("curve shape         : peak already passed -> kappa-dominant.")
             print("                      Remedy: reduce SHARING (partition, per-shard state,")
             print("                      batch updates), not tuning the parallel code.")

@@ -1,6 +1,23 @@
-﻿N,speedup,serial_seconds,parallel_seconds,merge_minutes,rework_minutes,rework_tasks,conflicts,date,project,task_type,note
-# 空表，勿填合成数据。每次并行任务后追加一行。
+N,speedup,serial_seconds,parallel_seconds,merge_minutes,rework_minutes,rework_tasks,conflicts,date,project,task_type,note
+# 实测数据（2026-09-26 首次拟合）。追加新行前请读完这段。
+# 每行 = 一次真实派发；勿填合成数据。装置、局限与重跑方法见 references/关键数字速查.md §16。
 # speedup = serial_seconds / (parallel_seconds + merge_minutes*60 + rework_minutes*60)
 #   —— 分母必须含合并与返工，只记并行耗时会漏掉协调成本，拟合出的 kappa 会系统性偏小、K 偏大。
-# 需要至少 5 个不同 N 才能跑 scripts/fit_kappa.py --csv 本文件 并得到参数与置信区间；
-#   少于 5 个 N 时脚本只给方向性判断，因为 2 参数拟合的自由度不足。
+# 需要至少 6 个不同 N、且覆盖峰值两侧，才能对本文件跑 scripts/fit_kappa.py 得到可信区间；
+#   点数不足时脚本只给方向性判断；扫描从未越过峰值时脚本判 kappa 不可辨识——
+#   上升段外推不是协调成本的证据。
+# 本轮覆盖 N=1/2/3/4/6/12（write-shared-registry：每片一个 worktree、同一索引文件必冲突）。
+# 第 1 轮 6 行；第 2 轮复现 N=1/2/4 三行。**每轮各自除以本轮的串行基线**（299.0s vs 348.6s），
+#   所以同 N 的两行可比，跨 N 的 serial_seconds 列不要当常数读。
+# 未覆盖：只读扇出（表里 kappa=0.01 那行仍是猜测）、真实仓库依赖图分片。
+# 被丢弃的一臂：第 2 轮首次 N=4 有一个子 agent 时钟偏了 36.7 天，arm.py 的时钟门拒绝记行
+#   （读数会算成 speedup≈0.0001）；重跑的那臂才是下面这行。
+1,0.962,299.0,299.0,0.195,0.000,0,0,2026-09-26,kappa-real-dispatch,write-shared-registry,serial baseline; one agent all 12 units; re-run after reboot invalidated first attempt
+2,1.214,299.0,209.7,0.611,0.000,0,1,2026-09-26,kappa-real-dispatch,write-shared-registry,two implementers 6 units each; shard imbalance 209.6s vs 141.7s
+3,1.037,299.0,228.8,0.992,0.000,0,2,2026-09-26,kappa-real-dispatch,write-shared-registry,three implementers 4 units each; durations 180/224/174s
+4,0.985,299.0,246.0,0.959,0.000,0,3,2026-09-26,kappa-real-dispatch,write-shared-registry,four implementers 3 units each; durations 124/245/102/148s (2.4x spread at equal work); first fan-in lost shard1 registrations to a quote-blind resolver; re-fanned-in clean with the fix; all four shards had been green individually
+6,0.949,299.0,259.1,0.931,0.000,0,5,2026-09-26,kappa-real-dispatch,write-shared-registry,six implementers 2 units each; durations 162/227/162/108/106/257s; first fan-in left shard2 unregistered (append-style registration the resolver did not understand); re-fanned-in clean; gate had refused the red arm
+12,0.727,299.0,299.8,1.861,0.000,0,11,2026-09-26,kappa-real-dispatch,write-shared-registry,twelve implementers 1 unit each; durations 96-299s at identical scope; platform ran all 12 concurrently (observed overlap=12); 11 registry conflicts
+1,0.999,348.6,348.6,0.005,0.000,0,0,2026-09-26,kappa-real-dispatch,write-shared-registry,ROUND2 replicate; t_start was a filesystem floor not a date reading (agent flagged it); so this span overstates by spawn latency; within-round normalization used
+2,1.173,348.6,296.6,0.011,0.000,0,1,2026-09-26,kappa-real-dispatch,write-shared-registry,ROUND2 replicate of the N=2 level
+4,0.868,348.6,401.3,0.007,0.000,0,3,2026-09-26,kappa-real-dispatch,write-shared-registry,ROUND2 replicate of N=4; durations 152/249/182/385s
