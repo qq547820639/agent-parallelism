@@ -221,9 +221,11 @@ def main():
         scenario = cells[0]
         backed = ("write" if "写入" in scenario else
                   "read" if "只读" in scenario else "coding")
-        # "未实测" contains "实测" -- a plain substring test would grade an honest
-        # guess row as a measurement claim.
-        claims_measured = "实测" in basis.replace("未实测", "")
+        # Test the CLAIM FORM, not the substring: the label is always "**实测**" at
+        # the head of the basis cell. A substring test misgrades prose that merely
+        # mentions measuring (未实测 / 试测过), which is exactly how this check first
+        # fired on a legitimate read-only caveat.
+        claims_measured = basis.startswith("**实测**")
         actually_backed = backed == "write" and any("write" in t for t in measured_types)
         chk("scenario '%s': 实测 label matches the data behind it" % scenario,
             claims_measured == actually_backed,
