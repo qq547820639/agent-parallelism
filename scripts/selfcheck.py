@@ -30,10 +30,14 @@ SHARED_FACTS = [
     "0.697", "0.069", "2.09", "1.43",
     # Read-only round 2 (2026-09-26, 25 arms; see references section 18).
     "0.63~0.83", "25 臂",
+    # Mechanism model over the same arms (2026-09-27, references section 19).
+    # "27.8~233.9" replaces the retired "27~138" that quoted one level's max
+    # as the whole series' upper bound.
+    "27.8~233.9", "50.3", "7.23",
 ]
 
 # Values superseded by primary sources; must not reappear in SKILL.md.
-STALE_VALUES = ["26.3", "26.7", "14.3%"]
+STALE_VALUES = ["26.3", "26.7", "14.3%", "27~138"]
 
 # JSON schema shared by contract and brief templates.
 SCHEMA_FIELDS = {
@@ -119,12 +123,89 @@ def main():
         chk("fact %r present in SKILL.md and number reference" % fact,
             fact in skill and fact in ref_num)
 
-    # ---------- internal cross-references resolve ----------
-    secs = [int(x) for x in re.findall(r"^## (\d+)\.", ref_num, re.M)]
+    # ---------- internal cross-references resolve, on EVERY markdown face ----------
+    # A "§N" is a promise that a section exists. Two failure modes were both seen
+    # in this skill: a promise pointing at a section that never existed
+    # ("关键数字速查.md §7.7"), and -- worse -- a checker whose regex stopped at the
+    # first number, so "§7.7" passed because §7 does exist. Hence: the dotted part is
+    # checked, refs are resolved on every .md file (not just SKILL.md), and citations
+    # that point into someone else's paper (arXiv / Figure / Table) are not treated
+    # as internal promises.
+    md = {}
+    for dirpath, dirnames, filenames in os.walk(ROOT):
+        dirnames[:] = [d for d in dirnames
+                       if not d.startswith(".") and d != "__pycache__"]
+        for fn in filenames:
+            if fn.endswith(".md"):
+                rel = os.path.relpath(os.path.join(dirpath, fn), ROOT)
+                md[rel] = read(rel)
+    chk("markdown discovery found the faces that carry shared facts",
+        {"SKILL.md", "references/关键数字速查.md"} <= set(md), str(sorted(md)))
+
+    heads = {}
+    for rel, text in md.items():
+        s = set()
+        for m in re.finditer(r"^#{2,4} (\d+)(?:\.(\d+))?[.、\s]", text, re.M):
+            s.add(m.group(1) if m.group(2) is None
+                  else "%s.%s" % (m.group(1), m.group(2)))
+        heads[rel] = s
+    NUMREF = "references/关键数字速查.md"
+    secs = sorted(int(x) for x in heads.get(NUMREF, set()) if "." not in x)
     chk("number reference sections are contiguous from 1",
         secs == list(range(1, len(secs) + 1)), str(secs))
-    for ref in set(re.findall(r"§(\d+)", skill)):
-        chk("SKILL.md cross-reference §%s resolves" % ref, int(ref) in secs)
+    # A "SS" ref binds to ANOTHER file only when that file's name sits right next
+    # to it (e.g. "the number reference SS10"). A wide look-back lets an unrelated
+    # filename in the same sentence steal the binding -- measured: three refs to
+    # the number reference's own SS13/SS15/SS18 were read as refs to SKILL.md and
+    # reported as dead links.
+    NAMED = re.compile(r"([\w\-./\u4e00-\u9fff]+\.md)[`\s]*\u00a7(\d+(?:\.\d+)?)")
+    for rel, text in sorted(md.items()):
+        owners = {m.start(2): m.group(1) for m in NAMED.finditer(text)}
+        for m in re.finditer(r"\u00a7(\d+)(\.\d+)?", text):
+            tok = m.group(1) + (m.group(2) or "")
+            ctx = text[max(0, m.start() - 70):m.start()]
+            if ctx.endswith("`"):
+                # `SS18.7` in prose is a MENTION of a section token (this file
+                # literally documents a retired dead link), not a promise that the
+                # target exists. Only bare or filename-anchored refs are promises.
+                continue
+            if re.search(r"arXiv|Figure|Table|https?://|\u8bba\u6587", ctx):
+                continue                      # somebody else's document
+            owner = owners.get(m.start(1))
+            key = None
+            if owner is not None:
+                key = os.path.normpath(owner).replace(os.sep, "/")
+                if key not in heads:
+                    hit = [r for r in heads
+                           if os.path.basename(r) == os.path.basename(owner)]
+                    key = hit[0] if len(hit) == 1 else None
+                pool = heads.get(key, set()) if key else set()
+            else:
+                pool = heads.get(NUMREF, set()) | heads.get(rel, set())
+            chk("cross-reference \u00a7%s in %s resolves" % (tok, rel), tok in pool,
+                "owner=%s targets=%s" % (key or "-", sorted(pool)[:8]))
+
+    # ---------- markdown table rows keep their column count ----------
+    # Twice now a hand-spliced row added a 7th cell to a 6-column table (once by a
+    # trailing pipe, once by an unescaped "|" inside quoted text). Inline code and
+    # math make the pipe unavoidable, so the rule is: an UNESCAPED pipe separates
+    # cells; "\|" is content.
+    for rel, text in sorted(md.items()):
+        block = []
+        for lineno, line in enumerate(text.split("\n") + [""], 1):
+            if line.lstrip().startswith("|"):
+                block.append((lineno, line))
+            else:
+                if len(block) >= 2:
+                    widths = {}
+                    for ln, row in block:
+                        cells = len(re.findall(r"(?<!\\)\|", row))
+                        widths.setdefault(cells, []).append(ln)
+                    chk("%s table at line %d has one column count per row"
+                        % (rel, block[0][0]),
+                        len(widths) == 1,
+                        "counts=%s" % {k: v[:4] for k, v in widths.items()})
+                block = []
 
     # ---------- structure ----------
     gotchas = [int(x) for x in re.findall(r"^(\d+)\. \*\*", skill, re.M)]
