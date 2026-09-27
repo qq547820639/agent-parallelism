@@ -399,3 +399,44 @@ Step 4  定 briefing 冗余率
 正确处理：**有效 K = min(K_协调最优, K_限流上限)**，先分清是哪一个再开药方。详见 `关键数字速查.md` §10（限流 vs 协调成本，两类失败别混）。
 
 （保留此更正而非静默修改，是因为该错误曾被当作结论引用过。）
+
+---
+
+## 2026-09-28 调研：开源「并行子 agent」实现里，谁已经把「请求的 K」与「真正跑起来的 K」分开记账
+
+**这次问的问题**：不是"拟合用哪个库"（§12、§17 已答），而是**扇出点到底该怎么记账**。本仓库被同一类事绊了三次：速查 §18「平台把臂静默串行化」、速查 §20 结果四「请求 18 个、实测只有 17 个同时在跑」、速查 §22 ①「派发消息与简报给了两个取钟时刻」＋ §22 ⑬「两条臂共用一个身份，后一条把前一条从磁盘上吃掉」。这四件在成熟实现里有没有现成接法——先去读源码，不在第二轮里自己发明第二遍。
+
+**检索面与一手性**：repo 元数据取自 `https://api.github.com/repos/<owner>/<repo>` 的 JSON 回包（本轮逐条打印过 `stargazers_count / license.spdx_id / pushed_at`）；源码与 README 一律走 `raw.githubusercontent.com` 逐字重开；`topic:multi-agent` + `topic:orchestration` 检索 total=1558。**星数、许可、活动三列是一手读数；「并行的到底是什么」一列是我亲手读到的源码位置，不是转述。**
+
+**候选与可复用性**（六个维度，URL 本轮真实访问）
+
+| 方案 | 功能匹配度 | 许可 | 维护活跃度 | 安全风险 | 代码质量 | 能否复用 |
+|---|---|---|---|---|---|---|
+| [bytedance/deer-flow](https://github.com/bytedance/deer-flow)（83,050★）| **最高**：N 个子 agent 在同一个任务内并发，且扇出点有准入控制器 | MIT | pushed **2026-09-27**，很活跃 | 低（沙箱＋lease，见 §22 的隔离讨论）| 高：容量控制器/中间件/持久化/控制测试分得很清 | **借语义**（后端太重，不能引依赖）|
+| [google/adk-python](https://github.com/google/adk-python)（21,663★）| 高：`ParallelAgent` 是一等公民的 fan-out/fan-in 原语 | Apache-2.0 | pushed **2026-09-26** | 低 | 高：TaskGroup 语义与 pre-3.11 兜底分开写并有注释 | **借形状**（扇入哨兵＋背压），无 N 上限、不测墙钟 |
+| [microsoft/agent-framework](https://github.com/microsoft/agent-framework)（13,824★）| 中：`ConcurrentBuilder` 是工作流级 fan-out/fan-in＋聚合器 | MIT | pushed **2026-09-27** | 低 | 中高：检查点/流式/HITL 齐全，但没有并发上限 | 抄思路（聚合侧，不是测量侧）|
+| [BloopAI/vibe-kanban](https://github.com/BloopAI/vibe-kanban)（28,205★）| 中：并行的是**每张卡一个 worktree 的多个编码 agent**，不是单任务内分片 | Apache-2.0 | pushed **2026-09-19** | 中（要跑他人 command）| 中高：worktree 创建有逐路径锁＋重试＋清理 | 借语义 1 条（provision 不是免费）|
+| [obra/superpowers](https://github.com/obra/superpowers)（292,165★）| 低：**只有散文判据**，无计时、无上限、无准入 | MIT | pushed **2026-09-27** | 低 | 中（技能文档，非可执行装置）| 不能复用——但它独立写着我们那条派发纪律 |
+
+**决定：借语义，不引依赖。** 理由：deer-flow 这套是 FastAPI＋SQLModel＋LangGraph 后端（`backend/app/gateway/routers/subagents.py`、`persistence/subagent_batches/sql.py` 都在场），而本技能包按上下文预算装载、拟合线是 stdlib-only，塞不进；能带走的只有**接口形状**。下面六条每条都指回它的原文出处，并指到它在我们装置里要改的接线位。**本轮不动 `kappa-measure/` 的装置**——那台机器上另一个会话正在投臂，速查 §22 ⑩／⑬ 记的就是"在别人正在用的档案上动手会把证据吃掉"；这六条与既有的待办「两把尺共用一条臂资格规则」「R3 把横轴换成交付并发度」同批实施。
+
+1. **先钳成"准入的 K"，再把队列深度记进行里** ← deer-flow `backend/packages/harness/deerflow/subagents/capacity.py`：`SubagentCapacitySnapshot(max_running, running, max_queued, queued, admission_policy)`，FIFO waiter，类文档原话 *"FIFO async capacity controller; queued work never owns a thread"*；缺省值在 `config/subagent_runtime_config.py:11-28` ⇒ `max_running=3 / max_queued=64 / admission_policy="queue" / queue_timeout_seconds=300`；`config/subagents_config.py:12-16` ⇒ 每轮总量缺省 **6**、硬上限 **50**、并发钳位 **[1,64]**，且 `clamp_subagent_concurrency(value, execution_capacity=...)` 把**请求值钳到执行容量**。我们手上只有事后的 `concurrency_observed` 加整臂作废。落点：`ro_measure.py:prep/collect` 记一份准入快照（running/queued）进臂状态。
+2. **准入失败是一种终点，不是"这臂慢"** ← 同一文件 `subagents/executor.py:1389-1400`：`async with capacity.slot():` 之内才 `result.status = RUNNING` 并 `result.started_at = _utcnow()`；`except SubagentCapacityError` 走 `try_set_terminal(FAILED, ..., admission_failure=True)`，而 `executor.py:138` 给这个字段写了语义（*"Whether capacity rejected/timed out before execution started"*）。对照：一支从没拿到槽位的臂与一支干得慢的臂，在我们 12 列记账行里同形，只能靠 cov 反推。落点：记账行新增 `admission=`，`ro_fit` 的门槛按**拒因**分流，而不是按 cov 一刀切。
+3. **取钟权在编排器手里** ← `executor.py:1392-1394` 的 `started_at` 由编排器在拿到槽位那一刻打；README（1663 行区）另有 *"completed sub-agent usage is attributed back to the **dispatching step** from that run's terminal tool-message metadata rather than a process-global provider-ID cache"*。对照：速查 §22 ① 量到两个取钟时刻中位差 **40.3 秒**（与单 worker 固定开销同量级），pin 档只把权威收归简报，没把"拿到槽位的时刻"做成一个字段。落点：`collect` 记准入时刻，跨度端点由它给，worker 自报降为交叉核对。
+4. **并发跑之间的身份要由服务端铸造，不能借 provider 的 ID** ← README（1663 行区）原话：*"Concurrent parent runs also receive independent server-side sub-agent execution IDs, so a provider that reuses a tool-call ID cannot make one run poll, cancel, or clean up another run's background task."* 这正好是速查 §22 ⑬（未盖戳的两条同并发度臂共用一个归档名，后一条把前一条冲掉）＋ §22 ⑩（4 个槽位里 2 个执行了别会话的任务书）两件事的合起来形状。前一件我们已用 `arm_key` 修，**后一件没有对应物**——手上只有 `cohost=` 协变量，没有"这个载荷是不是我的"的判据。落点：`prep` 铸造 nonce 写进简报，`collect` 要求 worker 回显；不回显即拒，拒因写"载荷归属未证实"而不是"平台串行化"。
+5. **扇入的完成定义＝每支一个哨兵；每支的首事件延迟是可观测量** ← adk-python `src/google/adk/agents/parallel_agent.py` 的 `_merge_agent_run`：`asyncio.TaskGroup` 起 N 支、单一 `asyncio.Queue` 收，每支结束时 `queue.put((sentinel, error))`（哨兵自带那一支的错误），主循环 `while sentinel_count < len(agent_runs)`；每个事件配一个 `resume_signal` 做**背压**（上游没消费就不产下一事件），直接子 agent 的 escalate 会 `_cancel_tasks(tasks)` 收掉其余分支；分支隔离用 `_BranchPath.create_sub_branch`。我们的跨度是 `max(t_end) − min(t_start)`，起跑错峰只有一个聚合数（速查 §20 的"抖动占比"）。借的是形状：**把每支首个可见事件的时刻单独记下来**，错峰就从"臂的噪声"变成可分列的一项。注意 ADK 对 N **没有上限**，也不测墙钟——它防的是"把队列当算法"，不回答"K 该开多大"。
+6. **隔离机制自己也带争用，别把它当免费** ← vibe-kanban `crates/worktree-manager/src/worktree_manager.rs:95-163`：每个 worktree 路径单独一把 `WORKTREE_CREATION_LOCKS` 异步锁，创建前做 "comprehensive cleanup"，创建步注释写明 *"retry logic for metadata conflicts"*，清理函数注释写明防的是 *"path exists"* 类错误。对照：速查 §16 把合并秒数 11.7→111.7 的巨大噪声归给"卷/git 的暖机开销"就停了，N=12 那支 merge 占跨度 37%。借法：写侧把 **provision 与扇出窗口分开计时**（`provision_seconds` 单列），别让 N 个 agent 抢同一份 `.git/worktrees` 元数据的串行化混进 κ。
+
+**顺带一条独立佐证**（deer-flow README 1663 行区，讲 lead agent 何时才许扇出）：*"…when delegation has clear net benefit from real parallel latency, specialist capability, or context isolation. It keeps interdependent scopes and overlapping side effects out of parallel dispatch… The lead uses the fewest useful sub-agents and re-evaluates later batches instead of fanning out solely because a task is large or multi-step."* ——一个 83k★ 的生产实现独立收敛到"最少可用子 agent ＋ 互斥副作用不进并行"，与我们速查 §2 的软/硬隔离消融、§11 的 agentic drift 同向，但**它给的是策略不是数**。
+
+**方法论借鉴（不引代码但改了流程的）**：deer-flow `agents/middlewares/subagent_limit_middleware.py` 把"这一轮还能不能再派"做成**运行时中间件**，总量钳在 [1,50]、并发钳在 [1,64]，超限还给模型一句可读的收尾指令（`_TOTAL_LIMIT_STOP_MSG`：用已收回的子 agent 结果／简单活儿自己做／改写为总结，别再派）。我们的 K 上限到今天还是给人看的表，不是会拦住第二次派发的东西——这条差异是本档案 §7 P0-3/P0-4 与真实执行之间的一个洞。
+
+**未找到（这也是结论）**
+- `api.github.com/repos/ruvnet/claude-flow` 与 `api.github.com/repos/strands-agents/sdk-python` **两条都回 404**（各试过两次，回包 `full_name=null`）。常被点名的两个"hive-mind / `Parallel` 代理类型"实现，本轮**未检索到**，因此本报告不引用它们，也不拿相近内容补位。
+- 五个真实访问过的实现里，**没有任何一个把 σ/κ、N_max 或墙钟加速曲线做进产品**：deer-flow 的 cap 是运维安全值（缺省 `max_running=3`、每轮总量 6）而非拟合出的峰值；ADK 与 agent-framework 只给 fan-out/fan-in 形状；superpowers 只有散文判据（`skills/dispatching-parallel-agents/SKILL.md:68-77`：*"Multiple dispatch calls in one response = parallel execution. One per response = sequential."*，无 K 数、无计时）。⇒ 与 §17 那句"未检索到把 USL 拟合用在 LLM agent 团队上的公开工作"一致：速查 §16 那 9 臂仍是**自有实测**，别写成行业基准。
+
+**只做了元数据核、没读源码（导航档，不算结论）**：[smtg-ai/claude-squad](https://github.com/smtg-ai/claude-squad) 8,537★／AGPL-3.0／pushed 2026-08-20、[Untrivial-ai/agent-orchestrator](https://github.com/Untrivial-ai/agent-orchestrator) 12,423★／Apache-2.0、[chaitanyagiri/munder-difflin](https://github.com/chaitanyagiri/munder-difflin) 8,056★／MIT、[camel-ai/camel](https://github.com/camel-ai/camel) 17,784★／Apache-2.0（README 自述社区目标是 *"finding the scaling laws of agents"*，但其"scaling law"指行为与涌现，不是墙钟；本轮未读其 team/workforce 源码，故不据它下结论）、[mco-org/mco](https://github.com/mco-org/mco) 526★／MIT、[josstei/maestro-orchestrate](https://github.com/josstei/maestro-orchestrate) 462★／Apache-2.0（自述"39 specialists, parallel subagents"）。这些的星数与许可同样是 API 一手回包，但"并行的到底是什么"未经源码核实。
+
+**本轮调研没有改动的东西（照实写）**：没动任何阈值、判据线、记账行形状或 SKILL.md 的 K 表——上面六条的落点全在另一会话正在使用的 `kappa-measure/` 装置里，改动窗口不在这一轮。它实际改动的是本档案（新增了六个带出处的接线位与一条"策略≠数"的独立佐证），以及下一轮的两条具体动作：给准入/载荷归属建字段，把 provision 从扇出窗口里拆出来。
+
+**一句话推荐**：最值得借的是 **bytedance/deer-flow**（MIT，83,050★，pushed 2026-09-27）——五个里唯一同时具备「N 个子 agent 在同一任务内并发」「准入控制器把请求值钳成执行容量」「编排器自己打 `started_at`」「准入失败与执行失败是两种终点」「身份由服务端铸造、不受 provider ID 复用影响」的仓库。**它与我们的根本不同**：它把并发上限当**策略**（缺省 3 running / 6 per run）来防失控，我们把 K 当**被测量**来找 N_max；而它一个墙钟加速数都不报。所以能借的是扇出点的记账接口，**一个常数都不能借**。次选 [google/adk-python](https://github.com/google/adk-python)（扇入哨兵计数＋每支背压的形状），第三 [BloopAI/vibe-kanban](https://github.com/BloopAI/vibe-kanban)（worktree provision 的逐路径锁与元数据冲突重试）。
