@@ -48,9 +48,12 @@ SHARED_FACTS = [
     # Sections 22 (8)(9): the per-worker cost fit and the channel's kappa floor.
     # "a" belongs to a (corpus x brief) cell -- 47.0 / 101.84 / 19.06 are three cells
     # of one quantity, so quoting 47.0 without saying which is the bug these guard.
-    # The floor is an UPPER edge (0.093): the median is not robust to the residual
-    # model (0.0386 per-level vs 0.0147 pooled), the edge is (0.0926 vs 0.0879).
-    "101.84", "19.06", "0.745", "3.13", "0.0386", "0.0470", "0.093",
+    # The floor is an UPPER edge (0.120): the median is not robust to the residual
+    # model (0.0421 per-level vs 0.0124 pooled), the edge is (0.1197 vs 0.1221).
+    # These replaced 0.0386/0.0926/0.093 after the delivery pool stopped inheriting
+    # the cost fit's "drop arms whose shards and durations do not pair" rule --
+    # which had discarded exactly the partial arms that carry the bad news.
+    "101.84", "19.06", "0.745", "3.13", "0.0421", "0.0568", "0.120",
 ]
 
 # Values superseded by primary sources; must not reappear in SKILL.md's live text
@@ -177,7 +180,7 @@ def main():
                     "112.953", "287.568", "2.55", "0.17~0.22",
                     "1.110", "3.242", "98%",
                     "101.84", "19.06", "0.745", "4.285", "3.13",
-                    "0.0386", "0.0926", "0.0470"]
+                    "0.0421", "0.1197", "0.0568"]
     readme_path = os.path.join(ROOT, "README.md")
     if os.path.exists(readme_path):
         readme = open(readme_path, encoding="utf-8").read()
