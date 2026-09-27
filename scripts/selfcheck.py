@@ -60,7 +60,7 @@ SHARED_FACTS = [
     # These replaced 0.0386/0.0926/0.093 after the delivery pool stopped inheriting
     # the cost fit's "drop arms whose shards and durations do not pair" rule --
     # which had discarded exactly the partial arms that carry the bad news.
-    "101.84", "21.37", "4.77", "0.728", "3.00", "0.0464", "0.1442",
+    "101.84", "24.63", "3.00", "0.0464", "0.1442",
     "0.155", "0.1421",
     # section 22 (11): the two arms that clear the delivery gate. 1.090 is the one
     # with a FAST denominator, 3.242 the one with a SLOW one -- same level, same
@@ -76,8 +76,9 @@ SHARED_FACTS = [
 # claim was correct in SKILL.md and wrong one file over.
 STALE_VALUES = ["26.3", "26.7", "14.3%", "27~138", "12~14 分钟", "50.3",
                 "至少 5 个不同并发度",
-                # the pin cost fit + decomposition factors, as published at n=32 workers
-                "19.06", "0.745", "5.18"]
+                # fully retired (the drift history in the reference face keeps the
+                # superseded a-values as LEGITIMATE prose, so they are not listed here)
+                "0.745", "5.18"]
 
 # JSON schema shared by contract and brief templates.
 SCHEMA_FIELDS = {
@@ -194,7 +195,7 @@ def main():
     README_FACTS = ["47.0", "250.652", "40.3", "0.35~0.83", "14%",
                     "112.953", "287.568", "2.55", "0.17~0.22",
                     "1.110", "3.242", "98%",
-                    "101.84", "21.37", "0.728", "4.285", "3.00",
+                    "101.84", "24.63", "4.285", "3.00",
                     "0.0464", "0.1442", "0.0440", "1.090", "2.166",
                     "0.84", "0.55", "0.069"]
     readme_path = os.path.join(ROOT, "README.md")
