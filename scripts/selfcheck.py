@@ -65,9 +65,16 @@ SHARED_FACTS = [
     "17.6", "3.08",
     # section 22 (15): the WRITE channel measured its own floor; 0.069 is inside it
     "0.24", "0.0786", "111.7",
-    # ⑲ re-derived the read-only bar from 8 arm-A edges (band 0.1614~0.1773);
-    # "0.21" is retired and must not come back as a live claim.
-    "0.19", "0.1421",
+    # ⑲ re-derived the read-only bar from 8 arm-A edges (band 0.1614~0.1773) at 0.19;
+    # ⑳ moved it again after draw 9 entered the ledger. This list only asserts that the
+    # value below APPEARS in SKILL.md -- it does not enforce retirement of old bars
+    # (STALE_VALUES below is the retirement list, and 0.21 was deliberately never added
+    # to it because a decision bar is a derived quantity: 0.21 was correct, then retired,
+    # and can legitimately return if the band widens back past it). The authority for
+    # "which bar is live" is `ro_doc_counts.py` C27, which recomputes the bar with
+    # ro_ident.bar_from -- round(max(edges)+0.0151, 2), NOT a ceiling, see task note in
+    # RUNPLAN -- and fails the face if it disagrees.
+    "0.21", "0.1421",
     # section 22 (11): the two arms that clear the delivery gate. 1.090 is the one
     # with a FAST denominator, 3.242 the one with a SLOW one -- same level, same
     # delivery quality, 3x apart, which is the whole "denominator moves the level"
