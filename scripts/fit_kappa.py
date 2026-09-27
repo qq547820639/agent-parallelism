@@ -372,7 +372,16 @@ def main():
         print("WARN: R^2 < 0.5, data is noisy. Treat the fit as directional only.")
     if solver.startswith("grid"):
         print("NOTE: grid solver yields no parameter covariance, so no N_max confidence")
-        print("      interval. Install numpy+scipy for a quantified fit.")
+        # This used to say "Install numpy+scipy" unconditionally, which told a user to
+        # install what they already have -- ro_fit.py pins --solver grid deliberately,
+        # so the blocker is the observation count, not the dependency.
+        try:
+            import numpy    # noqa: F401
+            import scipy    # noqa: F401
+            print("      interval. numpy+scipy ARE installed, so --solver scipy would give")
+            print("      a covariance fit -- but any solver needs >= 6 distinct N for a CI.")
+        except ImportError:
+            print("      interval. Install numpy+scipy for a quantified fit.")
     return 0
 
 
