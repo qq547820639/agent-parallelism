@@ -5,7 +5,7 @@ when_to_use: 用户可能这样说——「这个仓库 500 多个文件，扫�
 description_zh: "多 Agent 并行派发的并发度决策与协调门禁（USL 定 K、契约先行、worktree 隔离、中心化验证）"
 description_en: "Decide parallel agent fan-out width (USL N_max), enforce contract-first, git-worktree isolation and centralized verification"
 display_name: "多 Agent 并行调度"
-version: 2.10.2
+version: 2.10.3
 user-invocable: true
 agent_created: true
 ---
@@ -22,7 +22,7 @@ agent_created: true
 
 1. **任务复杂度分数不能用来决定要不要并行。** 实测 Finance Agent（复杂度 0.407）多 agent **+80.8%**，PlanCraft（0.419）**−70.0%**——复杂度几乎相同，结果相反。只看可分解性三问。
 2. **唯一稳健的预测因子是单 agent 基线，不是任务难度。** 但 45% 阈值**跨域失效**（留出整个任务域后 R² = −2.09），只在同一类任务内用。
-3. **Amdahl 定律只是 κ=0 的理想上界。** 真实协调开销是二次的（实测回合数 ∝ N^1.724，R²=0.974）。用 Amdahl 估收益会系统性高估。
+3. **Amdahl 定律只是 κ=0 的理想上界。** 真实协调开销是二次的（实测回合数 ∝ N^1.724，R²=0.974 —— 外部数据，引自 Nature Mach Intell 8:1157–1172，非本装置产出）。用 Amdahl 估收益会系统性高估。
 4. **上下文复制是"贵"，不是"浪费"。** 等预算下多 agent 输给单 agent（数据处理不等式：每次 handoff 都有损），但多 agent 在「单 agent 装不下/被污染」时确实赢。别拿"浪费 token"当反对并行的理由。
 5. **编码类不是不能并行，而是分短时程 / 长时程。** 短时程孤立任务（单 issue 修复）：SWE-bench 上多 agent 结构**全部小幅下降** → K=1~2。长时程共享产物（从零建库、复现论文）：CAID **+14.7% / +25.6%** → K=2~4 且须 worktree 隔离。别一刀切。
 6. **软隔离吃掉大部分并行收益。** CAID 消融：软隔离（共享 workspace + prompt 分文件）PaperBench **55.5% < 单 agent 57.2%**；Commit0-Lite 56.1% 虽高于单 agent 53.1%，仍显著低于 worktree 的 59.1%。owner 表**只是软隔离**。
