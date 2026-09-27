@@ -54,6 +54,11 @@ SHARED_FACTS = [
     # the cost fit's "drop arms whose shards and durations do not pair" rule --
     # which had discarded exactly the partial arms that carry the bad news.
     "101.84", "19.06", "0.745", "3.13", "0.0421", "0.0568", "0.120",
+    # section 22 (11): the two arms that clear the delivery gate. 1.090 is the one
+    # with a FAST denominator, 3.242 the one with a SLOW one -- same level, same
+    # delivery quality, 3x apart, which is the whole "denominator moves the level"
+    # claim in two numbers.
+    "1.090", "2.166",
 ]
 
 # Values superseded by primary sources; must not reappear in SKILL.md's live text
@@ -180,7 +185,7 @@ def main():
                     "112.953", "287.568", "2.55", "0.17~0.22",
                     "1.110", "3.242", "98%",
                     "101.84", "19.06", "0.745", "4.285", "3.13",
-                    "0.0421", "0.1197", "0.0568"]
+                    "0.0421", "0.1197", "0.0568", "1.090", "2.166"]
     readme_path = os.path.join(ROOT, "README.md")
     if os.path.exists(readme_path):
         readme = open(readme_path, encoding="utf-8").read()
