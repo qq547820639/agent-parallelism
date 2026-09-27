@@ -63,6 +63,8 @@ SHARED_FACTS = [
     "101.84", "24.63", "3.00", "0.0464", "0.1442",
     # section 22 (14): the out-of-corpus calibration -- a survives, b does not
     "17.6", "3.08",
+    # section 22 (15): the WRITE channel measured its own floor; 0.069 is inside it
+    "0.24", "0.0786", "111.7",
     "0.155", "0.1421",
     # section 22 (11): the two arms that clear the delivery gate. 1.090 is the one
     # with a FAST denominator, 3.242 the one with a SLOW one -- same level, same
@@ -414,12 +416,22 @@ def main():
         # mentions measuring (未实测 / 试测过), which is exactly how this check first
         # fired on a legitimate read-only caveat.
         claims_measured = basis.startswith("**实测**")
+        # "有数据" and "这个数是证据" are two different claims. A row can be backed by
+        # real dispatches and still carry a fitted parameter that sits inside its own
+        # channel's zero-interference floor (section 22 item 15), so that state gets its
+        # own label form -- and the label has to name the floor, or "拟合值" is a weasel.
+        claims_fitted = basis.startswith("**拟合值，但不是耦合的证据**")
         actually_backed = backed == "write" and any("write" in t for t in measured_types)
+        if claims_fitted:
+            chk("scenario '%s': the fitted-not-evidence label cites its section" % scenario,
+                u"§22 ⑮" in basis, basis[:90])
         chk("scenario '%s': 实测 label matches the data behind it" % scenario,
-            claims_measured == actually_backed,
+            (not claims_measured) or actually_backed,
             "label=%s rows=%s measured_types=%s" % (claims_measured, actually_backed,
-                                                    sorted(measured_types)))
-        if not claims_measured:
+                                                     sorted(measured_types)))
+        chk("scenario '%s': a backed row states which evidence class it is in" % scenario,
+            (not actually_backed) or claims_measured or claims_fitted, basis[:90])
+        if not claims_measured and not claims_fitted:
             chk("scenario '%s' says its number is unmeasured" % scenario,
                 "猜" in basis or "未实测" in basis, basis)
 
