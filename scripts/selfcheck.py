@@ -45,15 +45,23 @@ SHARED_FACTS = [
     # Draw 2 of the pin regime: the denominator moves inside ONE regime, and the
     # refused arms say how little concurrency the channel actually delivered.
     "112.953", "287.568", "2.55", "0.17~0.22", "1.110", "3.242", "98%",
-    # Sections 22 (8)(9): the per-worker cost fit and the channel's kappa floor.
-    # "a" belongs to a (corpus x brief) cell -- 47.0 / 101.84 / 19.06 are three cells
-    # of one quantity, so quoting 47.0 without saying which is the bug these guard.
-    # The floor is an UPPER edge -- the LARGER of the two residual models (0.155): the median is not robust to the residual
-    # model (0.0421 per-level vs 0.0124 pooled), the edge is (0.1197 vs 0.1221).
+    # Sections 22 (8)(9)(12): the per-worker cost fit, the channel's kappa floor and
+    # the write regime's retrofitted delivery.  "a" belongs to a (corpus x brief) cell
+    # -- 47.0 / 101.84 / 21.37 are three cells of one quantity, so quoting 47.0 with no
+    # corpus named is the bug these guard.  The pin cell MOVED when draw 5 added 10
+    # workers to the same archive (n=32 -> 42): a published fit is a snapshot of a
+    # growing file, so the n is part of the token's meaning.
+    # The floor is an UPPER edge.  0.155 is NOT "the max of the two residual models" --
+    # that max compared a 1000-rep arm (0.1442) with a 400-rep one (0.1547).  At
+    # matched reps the two models give 0.1442 / 0.1421 at seed 7, while the
+    # per-level model alone spans 0.1382..0.1506 across seeds 7/11/23 -- a wider
+    # swing than the model choice, so 0.155 is margin above the measured
+    # 0.134..0.151 band, not a computed max, and the edge is not a 4-decimal number.
     # These replaced 0.0386/0.0926/0.093 after the delivery pool stopped inheriting
     # the cost fit's "drop arms whose shards and durations do not pair" rule --
     # which had discarded exactly the partial arms that carry the bad news.
-    "101.84", "19.06", "0.745", "3.13", "0.0464", "0.1442", "0.155",
+    "101.84", "21.37", "4.77", "0.728", "3.00", "0.0464", "0.1442",
+    "0.155", "0.1421",
     # section 22 (11): the two arms that clear the delivery gate. 1.090 is the one
     # with a FAST denominator, 3.242 the one with a SLOW one -- same level, same
     # delivery quality, 3x apart, which is the whole "denominator moves the level"
@@ -67,7 +75,9 @@ SHARED_FACTS = [
 # it lived on the README face -- which the stale scan used to skip, so the same
 # claim was correct in SKILL.md and wrong one file over.
 STALE_VALUES = ["26.3", "26.7", "14.3%", "27~138", "12~14 分钟", "50.3",
-                "至少 5 个不同并发度"]
+                "至少 5 个不同并发度",
+                # the pin cost fit + decomposition factors, as published at n=32 workers
+                "19.06", "0.745", "5.18"]
 
 # JSON schema shared by contract and brief templates.
 SCHEMA_FIELDS = {
@@ -184,8 +194,9 @@ def main():
     README_FACTS = ["47.0", "250.652", "40.3", "0.35~0.83", "14%",
                     "112.953", "287.568", "2.55", "0.17~0.22",
                     "1.110", "3.242", "98%",
-                    "101.84", "19.06", "0.745", "4.285", "3.13",
-                    "0.0464", "0.1442", "0.0440", "1.090", "2.166"]
+                    "101.84", "21.37", "0.728", "4.285", "3.00",
+                    "0.0464", "0.1442", "0.0440", "1.090", "2.166",
+                    "0.84", "0.55", "0.069"]
     readme_path = os.path.join(ROOT, "README.md")
     if os.path.exists(readme_path):
         readme = open(readme_path, encoding="utf-8").read()
