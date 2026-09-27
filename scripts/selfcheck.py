@@ -61,6 +61,8 @@ SHARED_FACTS = [
     # the cost fit's "drop arms whose shards and durations do not pair" rule --
     # which had discarded exactly the partial arms that carry the bad news.
     "101.84", "24.63", "3.00", "0.0464", "0.1442",
+    # section 22 (14): the out-of-corpus calibration -- a survives, b does not
+    "17.6", "3.08",
     "0.155", "0.1421",
     # section 22 (11): the two arms that clear the delivery gate. 1.090 is the one
     # with a FAST denominator, 3.242 the one with a SLOW one -- same level, same
