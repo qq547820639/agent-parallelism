@@ -74,7 +74,7 @@ SHARED_FACTS = [
     # "which bar is live" is `ro_doc_counts.py` C27, which recomputes the bar with
     # ro_ident.bar_from -- round(max(edges)+0.0151, 2), NOT a ceiling, see task note in
     # RUNPLAN -- and fails the face if it disagrees.
-    "0.21", "0.1421",
+    "0.20", "0.1421",
     # section 22 (11): the two arms that clear the delivery gate. 1.090 is the one
     # with a FAST denominator, 3.242 the one with a SLOW one -- same level, same
     # delivery quality, 3x apart, which is the whole "denominator moves the level"
