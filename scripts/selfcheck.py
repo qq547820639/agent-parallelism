@@ -65,7 +65,7 @@ SHARED_FACTS = [
     "17.6", "3.08",
     # section 22 (15): the WRITE channel measured its own floor; 0.069 is inside it
     "0.24", "0.0786", "111.7",
-    "0.155", "0.1421",
+    "0.21", "0.1421",
     # section 22 (11): the two arms that clear the delivery gate. 1.090 is the one
     # with a FAST denominator, 3.242 the one with a SLOW one -- same level, same
     # delivery quality, 3x apart, which is the whole "denominator moves the level"
