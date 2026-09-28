@@ -66,9 +66,12 @@ SHARED_FACTS = [
     # section 22 (15): the WRITE channel measured its own floor; 0.069 is inside it
     "0.24", "0.0786", "111.7",
     # ⑲ re-derived the read-only bar from 8 arm-A edges (band 0.1614~0.1773) at 0.19;
-    # ⑳ moved it again after draw 9 entered the ledger, ㉒ after draw 10's K=6 arm, and
-    # ㉓ after its K=8 arm (band 0.1659~0.2160 => 0.23), and ㉖ after draw 11's K=12 arm
-    # plus its 9th denominator (per-level 0.1975~0.2171 / pooled 0.2714~0.2797 => 0.29).
+    # ⑳ moved it again after draw 9 entered the ledger, ㉒ after draw 10's K=6 arm,
+    # ㉓ after its K=8 arm (band 0.1659~0.2160 => 0.23), ㉖ after draw 11's K=12 arm
+    # plus its 9th denominator (per-level 0.1975~0.2171 / pooled 0.2714~0.2797 => 0.29),
+    # and ㉙ DOWN to 0.25 after draw 13's same-window 1/4/8 ladder entered the replay
+    # (10 denominators now; band 0.1813~0.2382, per-level 0.21 | pooled 0.25 -- still the
+    # pooled fit that sets the line, which is why the pair is printed and not just the max).
     # This list only asserts that the
     # value below APPEARS in SKILL.md -- it does not enforce retirement of old bars
     # (STALE_VALUES below is the retirement list, and 0.21 was deliberately never added
@@ -84,7 +87,9 @@ SHARED_FACTS = [
     # all ~40 tokens, so it is a separate change, not something to slip in beside a bar move.
     # 0.23 is NOT added to STALE_VALUES: a decision bar is a derived quantity, and the face
     # still carries it inside ㉓'s narration. Retirement belongs to the reconciler, not here.
-    "0.29", "0.1421",
+    # 0.29 likewise: it was live from ㉖ until draw 13's arms came in, and it can legitimately
+    # return if the band widens back past it.
+    "0.25", "0.1421",
     # section 22 (11): the two arms that clear the delivery gate. 1.090 is the one
     # with a FAST denominator, 3.242 the one with a SLOW one -- same level, same
     # delivery quality, 3x apart, which is the whole "denominator moves the level"
