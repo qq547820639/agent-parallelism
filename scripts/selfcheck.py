@@ -67,7 +67,9 @@ SHARED_FACTS = [
     "0.24", "0.0786", "111.7",
     # ⑲ re-derived the read-only bar from 8 arm-A edges (band 0.1614~0.1773) at 0.19;
     # ⑳ moved it again after draw 9 entered the ledger, ㉒ after draw 10's K=6 arm, and
-    # ㉓ after its K=8 arm (band 0.1659~0.2160 => 0.23). This list only asserts that the
+    # ㉓ after its K=8 arm (band 0.1659~0.2160 => 0.23), and ㉖ after draw 11's K=12 arm
+    # plus its 9th denominator (per-level 0.1975~0.2171 / pooled 0.2714~0.2797 => 0.29).
+    # This list only asserts that the
     # value below APPEARS in SKILL.md -- it does not enforce retirement of old bars
     # (STALE_VALUES below is the retirement list, and 0.21 was deliberately never added
     # to it because a decision bar is a derived quantity: 0.21 was correct, then retired,
@@ -80,7 +82,9 @@ SHARED_FACTS = [
     # C27 is what actually checks the claim; this line only catches "the face dropped the
     # bar sentence entirely". Narrowing it to a delimited match needs the same decision on
     # all ~40 tokens, so it is a separate change, not something to slip in beside a bar move.
-    "0.23", "0.1421",
+    # 0.23 is NOT added to STALE_VALUES: a decision bar is a derived quantity, and the face
+    # still carries it inside ㉓'s narration. Retirement belongs to the reconciler, not here.
+    "0.29", "0.1421",
     # section 22 (11): the two arms that clear the delivery gate. 1.090 is the one
     # with a FAST denominator, 3.242 the one with a SLOW one -- same level, same
     # delivery quality, 3x apart, which is the whole "denominator moves the level"
