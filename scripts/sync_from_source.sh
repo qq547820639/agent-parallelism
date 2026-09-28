@@ -52,7 +52,11 @@ skip_file() {
 
 LIST="$(mktemp)"
 trap 'rm -f "$LIST"' EXIT
-(cd "$SRC" && find . -type f | sed 's|^\./||' | sort) > "$LIST"
+# Backups and editor droppings are NOT part of the distribution. This filter exists
+# because a face-editing script that writes `file.bak-<round>` next to the source handed
+# those copies to the repo three times in one day, and the repo's own guards then had to
+# be told to ignore files that should never have arrived.
+(cd "$SRC" && find . -type f | sed 's|^\./||' | grep -v -E '\.(bak([^/]*)|swp|orig)$' | sort) > "$LIST"
 
 TOTAL=$(awk 'END{print NR}' "$LIST")
 [ "$TOTAL" -gt 0 ] || { echo "ERROR: discovered no files in source" >&2; exit 1; }
