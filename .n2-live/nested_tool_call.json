@@ -1,0 +1,11 @@
+{
+  "tool_call": {
+    "name": "Bash",
+    "input": {
+      "command": "python3 src/n2_nested_child.py",
+      "description": "nested declarative tool_call dispatched by the harness as a subprocess"
+    },
+    "invocation_id": "n2-live-roundtrip-1",
+    "child": {"agent": "n2-bench-child", "depth": 1}
+  }
+}

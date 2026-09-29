@@ -8,6 +8,16 @@
 # 同步脚本生成的备份
 *.pre-merge
 
+# n2 闭环取证产物：transcript 是整段会话原文（587KB，含无关上下文），
+# artifacts 里带子进程生成的 secret。两者都是本机取证件，不进版本库；
+# 判据本身（checks/n2_check.py、scripts/malformed_probe_cases.py、src/、tests/）要提交。
+.n2-transcript.jsonl
+.n2-artifacts.json
+.n2-artifacts.json.tmp
+
 # Python
 __pycache__/
 *.py[cod]
+
+# 知识召回 info 来源探针的中间件（bundle 字节补丁副本 5MB + fixture/outputs/report），本机取证件，不进版本库
+.knowledge-probe/
